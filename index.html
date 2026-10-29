@@ -132,6 +132,8 @@ body.busy button[data-action] { cursor: progress; }
 .ach-t b { font-size: 14px; font-weight: 600; }
 .ach-t span { font-size: 12px; color: var(--muted); }
 .ach:not(.done) .ach-t b { color: var(--soft); }
+.ach-bar { display: block; height: 5px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 5px; }
+.ach-bar i { display: block; height: 100%; background: var(--gold); border-radius: 999px; }
 .ach-xp { font-size: 12px; font-weight: 600; color: var(--soft); }
 .ach.done .ach-xp { color: var(--live); }
 .pod-t { font-size: 11px; color: var(--muted); }
@@ -461,6 +463,14 @@ body.busy button[data-action] { cursor: progress; }
     { id: 'top3', name: '시상대', desc: '시즌 랭킹 3위 안에 들기', xp: 50 },
     { id: 'rich', name: '2천만 원 돌파', desc: '총자산 2,000만 원 달성', xp: 60 }
   ];
+  // 은행 업적: 받은 이자 누적 기준, 보상금은 은행 자금과 별개로 추가 지급 (서버 check_bank_ach 와 같은 값)
+  var BANK_ACH = [
+    { id: 'int1', name: '첫 이자', need: 1000, reward: 100000, xp: 10 },
+    { id: 'int2', name: '저축 새싹', need: 10000, reward: 500000, xp: 20 },
+    { id: 'int3', name: '저축왕', need: 100000, reward: 3000000, xp: 40 },
+    { id: 'int4', name: '이자 부자', need: 1000000, reward: 20000000, xp: 60 },
+    { id: 'int5', name: '은행의 큰손', need: 10000000, reward: 100000000, xp: 100 }
+  ];
   var pendingMsgs = [];
   function xpNeed(n) { return 20 + 15 * (n - 1); }
   function lvInfo(xp) {
@@ -511,13 +521,31 @@ body.busy button[data-action] { cursor: progress; }
     });
     html += '</div>';
 
-    html += '<div class="sec-head"><h2>업적</h2><span class="label">' + Object.keys(p.ach).length + ' / ' + ACH.length + '</span></div><div class="ach-list">';
+    var doneN = ACH.filter(function (a) { return p.ach[a.id]; }).length;
+    html += '<div class="sec-head"><h2>업적</h2><span class="label">' + doneN + ' / ' + ACH.length + '</span></div><div class="ach-list">';
     ACH.forEach(function (a) {
       var done = !!p.ach[a.id];
       html += '<div class="ach' + (done ? ' done' : '') + '"><span class="ach-ic" aria-hidden="true">' +
         (done ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>'
               : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>') +
         '</span><span class="ach-t"><b>' + a.name + '</b><span>' + a.desc + '</span></span><span class="num ach-xp">' + (done ? '달성' : '+' + a.xp + ' XP') + '</span></div>';
+    });
+    html += '</div>';
+
+    // 은행 업적
+    var earned = state.bank.earned || 0, bankDone = BANK_ACH.filter(function (a) { return p.ach[a.id]; }).length;
+    html += '<div class="sec-head"><h2>은행 업적</h2><span class="label">' + bankDone + ' / ' + BANK_ACH.length + '</span></div>' +
+      '<p class="note" style="margin:-8px 0 0">은행에서 받은 이자 누적(자유 예금 이자, 예금·적금 만기와 중도해지 이자)이 기준을 넘으면 보상금을 추가로 받아요. 지금 누적 이자는 <b class="num" style="color:var(--gold)">' + fmt(earned) + '원</b>이에요.</p><div class="ach-list">';
+    BANK_ACH.forEach(function (a, i) {
+      var done = !!p.ach[a.id], prev = i ? BANK_ACH[i - 1].need : 0;
+      var cur = !done && (i === 0 || p.ach[BANK_ACH[i - 1].id] || earned >= prev);
+      var w = Math.max(0, Math.min(100, earned / a.need * 100));
+      html += '<div class="ach' + (done ? ' done' : '') + '"><span class="ach-ic" aria-hidden="true">' +
+        (done ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>'
+              : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"></path><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"></path></svg>') +
+        '</span><span class="ach-t"><b>' + a.name + '</b><span>누적 이자 ' + krwX(a.need) + ' · 보상 ' + krw(a.reward) + ' · +' + a.xp + ' XP</span>' +
+        (cur ? '<span class="ach-bar" role="progressbar" aria-label="' + a.name + ' 진행" aria-valuemin="0" aria-valuemax="' + a.need + '" aria-valuenow="' + Math.min(earned, a.need) + '"><i style="width:' + w.toFixed(1) + '%"></i></span>' : '') +
+        '</span><span class="num ach-xp">' + (done ? '달성' : cur ? Math.floor(w) + '%' : '') + '</span></div>';
     });
     html += '</div>';
 
@@ -529,7 +557,7 @@ body.busy button[data-action] { cursor: progress; }
       '<p class="note" style="margin:-4px 0 4px">거래와 가입으로 얻는 활동 경험치는 게임 속 하루에 ' + ACT_CAP + ' XP까지예요.</p>' +
       '<div class="kv"><span>배당금 받기</span><span class="num">+5 XP</span></div>' +
       '<div class="kv"><span>정기 예금 만기 · 적금 만기</span><span class="num">+10 · +15 XP</span></div>' +
-      '<div class="kv"><span>업적 달성</span><span class="num">+10~60 XP</span></div></section>';
+      '<div class="kv"><span>업적 달성 · 은행 업적</span><span class="num">+10~100 XP</span></div></section>';
 
     if (p.log.length) {
       html += '<div class="sec-head"><h2>최근 경험치</h2></div><div class="trades">';
@@ -1307,6 +1335,7 @@ body.busy button[data-action] { cursor: progress; }
   function celebrate(a, b) {
     var la = lvInfo(a.xp).lv, lb = lvInfo(b.xp).lv;
     ACH.forEach(function (x) { if (b.ach[x.id] && !a.ach[x.id]) toast('업적 달성 「' + x.name + '」 +' + x.xp + ' XP'); });
+    BANK_ACH.forEach(function (x) { if (b.ach[x.id] && !a.ach[x.id]) toast('은행 업적 「' + x.name + '」 달성 · 보상 ' + krw(x.reward) + ' · +' + x.xp + ' XP'); });
     if (lb > la) {
       var ta = titleFor(la), tb = titleFor(lb);
       toast('레벨 업! Lv.' + lb + (ta !== tb ? ' · 새 칭호 「' + tb.name + '」 획득' : ''));

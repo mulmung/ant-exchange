@@ -591,6 +591,24 @@ body.busy button[data-action] { cursor: progress; }
   }
 
 
+  // 종목 로고 (가상 회사라 직접 그린 아이콘)
+  var LOGOS = {
+    HBE: ['#2D5BD3', '<circle cx="12" cy="12" r="3.6"></circle><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"></path>'],
+    CRS: ['#5B3FD1', '<rect x="7" y="7" width="10" height="10" rx="1.5"></rect><rect x="10" y="10" width="4" height="4" rx=".5"></rect><path d="M10 3.5V7M14 3.5V7M10 17v3.5M14 17v3.5M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5"></path>'],
+    PRB: ['#0E8F7E', '<path d="M8 3c0 5 8 6 8 9s-8 4-8 9"></path><path d="M16 3c0 5-8 6-8 9s8 4 8 9"></path><path d="M9.5 6.5h5M9.5 17.5h5M10.5 12h3"></path>'],
+    BYE: ['#C2407A', '<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"></path>'],
+    DRH: ['#9A6A33', '<path d="M3 15h18l-2.5 4.5h-13z"></path><path d="M7 15V9h6v6"></path><path d="M15 15V5.5"></path><path d="M15 5.5l4 3"></path>'],
+    BDS: ['#1F7FA8', '<path d="M3 9.5c1.5 0 1.5-1.5 3-1.5s1.5 1.5 3 1.5 1.5-1.5 3-1.5 1.5 1.5 3 1.5 1.5-1.5 3-1.5 1.5 1.5 3 1.5"></path><path d="M3 14c1.5 0 1.5-1.5 3-1.5s1.5 1.5 3 1.5 1.5-1.5 3-1.5 1.5 1.5 3 1.5 1.5-1.5 3-1.5 1.5 1.5 3 1.5"></path><path d="M3 18.5c1.5 0 1.5-1.5 3-1.5s1.5 1.5 3 1.5 1.5-1.5 3-1.5 1.5 1.5 3 1.5 1.5-1.5 3-1.5 1.5 1.5 3 1.5"></path>'],
+    GRE: ['#3E8E3A', '<path d="M13.5 3L6 13.5h5.5L10.5 21 18 10.5h-5.5z"></path>'],
+    GRS: ['#4C6A92', '<path d="M7.5 18.5a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17.6 9.6a4.45 4.45 0 0 1-.6 8.9z"></path>']
+  };
+  function logo(s, size) {
+    var L = LOGOS[s.code], px = size || 40, ic = Math.round(px * 0.55);
+    if (!L) return '<span class="logo" aria-hidden="true" style="width:' + px + 'px;height:' + px + 'px">' + s.name.charAt(0) + '</span>';
+    return '<span class="logo" aria-hidden="true" style="width:' + px + 'px;height:' + px + 'px;background:' + L[0] + '">' +
+      '<svg width="' + ic + '" height="' + ic + '" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + L[1] + '</svg></span>';
+  }
+
   // ---------- views ----------
   function viewMarket(flash) {
     var total = myTotal(), today = total - state.dayStartTotal, todayP = today / state.dayStartTotal * 100;
@@ -625,7 +643,7 @@ body.busy button[data-action] { cursor: progress; }
         var c = chg(s), dir = s.price > s.prev ? 'flash-up' : s.price < s.prev ? 'flash-down' : '';
         var col = c >= 0 ? 'var(--up)' : 'var(--down)';
         html += '<button class="row' + (flash && dir ? ' ' + dir : '') + '" data-action="open" data-code="' + s.code + '" type="button">' +
-          '<span class="logo" aria-hidden="true">' + s.name.charAt(0) + '</span>' +
+          logo(s) +
           '<span class="row-main"><b>' + s.name + limitTag(s) + '</b><span>' + (state.hold[s.code] ? state.hold[s.code].qty + '주 보유 · ' : '') + (ui.sort === 'div' ? (rate(s) ? '배당 ' + rate(s).toFixed(1) + '% · 1주 ' + fmt(dps(s)) + '원' : '무배당') : s.sector + (rate(s) >= 2 ? ' · 고배당' : '')) + '</span></span>' +
           '<svg class="spark" width="60" height="26" viewBox="0 0 60 26" aria-hidden="true"><path d="' + sparkPath(s.hist, 60, 26) + '" fill="none" stroke="' + col + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>' +
           '<span class="row-end"><b class="num">' + fmt(s.price) + '</b><span class="num ' + cls(c) + '">' + pct(chgPct(s)) + '</span></span></button>';
@@ -677,7 +695,7 @@ body.busy button[data-action] { cursor: progress; }
     var sns = state.news.filter(function (n) { return n.code === s.code; });
     var html = '<header class="dhead"><button class="icon-btn" data-action="back" type="button" aria-label="시세판으로 돌아가기">' +
       '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>' +
-      '<div class="dtitle"><b>' + s.name + '</b><span>' + s.sector + ' · 호가 단위 ' + fmt(unit(s.price)) + '원</span></div>' +
+      logo(s, 36) + '<div class="dtitle" style="margin-left:8px"><b>' + s.name + '</b><span>' + s.sector + ' · 호가 단위 ' + fmt(unit(s.price)) + '원</span></div>' +
       '<span class="pill"><span class="dot"></span><span><b class="num" id="cd">5</b>초</span></span></header>' +
       '<div style="display:flex;flex-direction:column;gap:2px"><span class="price-big num">' + fmt(s.price) + '원' + limitTag(s) + '</span>' +
       '<span class="num ' + cls(c) + '" style="font-size:14px;font-weight:600">' + (c > 0 ? '▲ ' : c < 0 ? '▼ ' : '') + fmt(Math.abs(c)) + ' (' + pct(chgPct(s)) + ') · 오늘</span></div>' +
@@ -798,7 +816,7 @@ body.busy button[data-action] { cursor: progress; }
       html += '<div class="list">';
       codes.map(stock).sort(function (a, b) { return b.price * state.hold[b.code].qty - a.price * state.hold[a.code].qty; }).forEach(function (s) {
         var h = state.hold[s.code], avg = h.cost / h.qty, r = (s.price / avg - 1) * 100;
-        html += '<button class="row" data-action="open" data-code="' + s.code + '" type="button"><span class="logo" aria-hidden="true">' + s.name.charAt(0) + '</span>' +
+        html += '<button class="row" data-action="open" data-code="' + s.code + '" type="button">' + logo(s) +
           '<span class="row-main"><b>' + s.name + '</b><span class="num">' + h.qty + '주 · 평균 ' + fmt(avg) + '</span></span>' +
           '<span class="row-end"><b class="num">' + fmt(s.price * h.qty) + '원</b><span class="num ' + cls(r) + '">' + pct(r) + '</span></span></button>';
       });

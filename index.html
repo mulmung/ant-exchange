@@ -657,8 +657,8 @@ body.busy button[data-action] { cursor: progress; }
     return '<button class="chip' + (key === cur ? ' on' : '') + '" data-action="' + action + '" data-key="' + key + '" type="button" aria-pressed="' + (key === cur) + '">' + label + '</button>';
   }
 
-  // 최근 1시간을 3분봉 캔들로 (양봉 빨강, 음봉 파랑)
-  var CANDLE_TICKS = 3, CANDLE_COUNT = 20;
+  // 최근 30분을 1분봉 캔들로 (양봉 빨강, 음봉 파랑)
+  var CANDLE_TICKS = 1, CANDLE_COUNT = 30;
   function candleSvg(s) {
     var h = s.hist, n = h.length, span = CANDLE_TICKS * CANDLE_COUNT;
     function priceAt(t) { var i = n - 1 - (state.tick - t); return i >= 0 && i < n ? h[i] : null; }
@@ -691,12 +691,12 @@ body.busy button[data-action] { cursor: progress; }
       if (up && k.c - k.o >= avgBody * 2.2 && k.c > k.o) body += '<text x="' + cx.toFixed(1) + '" y="' + (y(k.h) - 5).toFixed(1) + '" fill="var(--up)" font-size="9" font-weight="700" text-anchor="middle" font-family="inherit">장대</text>';
     });
     var last = candles[candles.length - 1].c, ly = y(last);
-    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + s.name + ' 최근 1시간 3분봉 차트">' + grid + body +
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + s.name + ' 최근 30분 1분봉 차트">' + grid + body +
       '<line x1="' + L + '" y1="' + ly.toFixed(1) + '" x2="' + (W - R) + '" y2="' + ly.toFixed(1) + '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 4"></line>' +
       '<text x="' + (W - R + 8) + '" y="' + (y(mx) + 4).toFixed(1) + '" fill="var(--soft)" font-size="11" font-family="inherit">' + fmt(mx) + '</text>' +
       '<text x="' + (W - R + 8) + '" y="' + (y(mn) + 4).toFixed(1) + '" fill="var(--soft)" font-size="11" font-family="inherit">' + fmt(mn) + '</text>' +
       (Math.abs(ly - y(mx)) > 14 && Math.abs(ly - y(mn)) > 14 ? '<text x="' + (W - R + 8) + '" y="' + (ly + 4).toFixed(1) + '" fill="var(--fg)" font-size="11" font-weight="600" font-family="inherit">' + fmt(last) + '</text>' : '') +
-      '<text x="' + L + '" y="' + (H - 6) + '" fill="var(--muted)" font-size="10" font-family="inherit">' + ago(state.tick - candles.length * CANDLE_TICKS + 1) + ' · 3분봉</text>' +
+      '<text x="' + L + '" y="' + (H - 6) + '" fill="var(--muted)" font-size="10" font-family="inherit">' + ago(state.tick - candles.length * CANDLE_TICKS + 1) + ' · 1분봉</text>' +
       '<text x="' + (W - R) + '" y="' + (H - 6) + '" fill="var(--muted)" font-size="10" font-family="inherit" text-anchor="end">지금</text></svg>';
     return svg;
   }
@@ -745,7 +745,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div style="display:flex;flex-direction:column;gap:2px"><span class="price-big num">' + fmt(s.price) + '원' + limitTag(s) + '</span>' +
       '<span class="num ' + cls(c) + '" style="font-size:14px;font-weight:600">' + (c > 0 ? '▲ ' : c < 0 ? '▼ ' : '') + fmt(Math.abs(c)) + ' (' + pct(chgPct(s)) + ') · 오늘</span></div>' +
       '<div class="chart-wrap">' + chartSvg(s) + '</div>' +
-      '<div class="period" role="group" aria-label="차트 기간">' + chip('period', 'recent', '최근 1시간', ui.period) + chip('period', 'day', '오늘', ui.period) + chip('period', 'all', '전체', ui.period) + '</div>';
+      '<div class="period" role="group" aria-label="차트 기간">' + chip('period', 'recent', '최근 30분', ui.period) + chip('period', 'day', '오늘', ui.period) + chip('period', 'all', '전체', ui.period) + '</div>';
     html += '<div class="sec-head"><h2>' + s.name + ' 뉴스</h2>' + (sns.length > 3 ? '<button class="link" data-action="nav" data-view="news" data-key="' + s.code + '" type="button">전체 ' + sns.length + '건</button>' : '') + '</div>';
     if (sns.length) html += '<div class="news-list">' + sns.slice(0, 3).map(function (n) { return newsItem(n, false); }).join('') + '</div>';
     else html += '<div class="empty" style="padding:18px 16px">아직 이 종목 뉴스가 없어요.</div>';

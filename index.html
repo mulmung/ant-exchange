@@ -471,7 +471,7 @@ body.busy button[data-action] { cursor: progress; }
   function viewProfile() {
     var p = state.prof, info = lvInfo(p.xp), t = myTitle(), w = info.next ? info.cur / info.next * 100 : 100;
     var actToday = p.act.d === day() ? p.act.xp : 0;
-    var html = '<header class="dhead"><button class="icon-btn" data-action="nav" data-view="portfolio" type="button" aria-label="내 자산으로 돌아가기">' +
+    var html = '<header class="dhead"><button class="icon-btn" data-action="back" type="button" aria-label="이전 화면으로 돌아가기">' +
       '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>' +
       '<div class="dtitle"><b>레벨 · 칭호</b><span>칭호가 높을수록 닉네임 색이 바뀌어요</span></div></header>' +
       '<section class="card" aria-label="내 레벨"><div class="split"><div class="pname"><b>' + nameHtml(p.nick, t) + '</b>' +
@@ -1027,13 +1027,40 @@ body.busy button[data-action] { cursor: progress; }
 
 
 
+  // ---------- 폰 뒤로가기 지원: 종목 상세·레벨 화면은 기록을 남겨서 뒤로가기로 닫힘 ----------
+  function isSub(v) { return v === 'detail' || v === 'profile'; }
+  function openSub(v) {
+    if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = window.scrollY; }
+    if (history.state && history.state.sub) history.replaceState({ sub: v }, '');
+    else history.pushState({ sub: v }, '');
+    ui.view = v; render(); window.scrollTo(0, 0);
+  }
+  function closeSub() {
+    if (!isSub(ui.view)) return;
+    ui.view = ui.prevView || 'market';
+    render();
+    var y = ui.prevScroll || 0;
+    requestAnimationFrame(function () { window.scrollTo(0, y); });
+  }
+  function goBack() {
+    if (history.state && history.state.sub) history.back();
+    else closeSub();
+  }
+  window.addEventListener('popstate', function () {
+    if (booted && isSub(ui.view)) closeSub();
+  });
+
   document.addEventListener('click', function (e) {
     var t = e.target.closest('[data-action]'); if (!t) return;
     var a = t.dataset.action, k = t.dataset.key;
     if (a === 'auth-mode') { authUi.mode = k; authUi.err = ''; var n = document.getElementById('auth-nick'); renderAuth(n ? n.value : ''); return; }
     if (a === 'logout') { sb.auth.signOut(); return; }
     if (!booted) return;
-    if (a === 'nav') { ui.view = t.dataset.view; ui.confirmReset = false; if (ui.view === 'news') ui.newsFilter = k || 'all'; render(); window.scrollTo(0, 0); return; }
+    if (a === 'nav') {
+      if (t.dataset.view === 'profile') { openSub('profile'); return; }
+      if (isSub(ui.view) && history.state && history.state.sub) history.replaceState(null, '');
+      ui.view = t.dataset.view; ui.confirmReset = false; if (ui.view === 'news') ui.newsFilter = k || 'all'; render(); window.scrollTo(0, 0); return;
+    }
     if (a === 'newsf') { ui.newsFilter = k; render(); return; }
     if (a === 'equip') {
       call('set_equip', { p_idx: Number(k) }).then(function (r) { if (r) { toast('칭호 「' + TITLES[Number(k)].name + '」을 달았어요'); after(r); } });
@@ -1042,8 +1069,8 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'nick-save') { saveNick(); return; }
     if (a === 'work-claim' || a === 'work-up') { workAction(a); return; }
     if (/^(bk-add|loan-take|loan-repay|sav-in|sav-out|sav-out-all|dep-term|plan-term|dep-open|plan-open|cancel-ask|cancel-no|cancel-yes)$/.test(a)) { bankAction(a, k, t); return; }
-    if (a === 'open') { ui.sel = t.dataset.code; ui.view = 'detail'; ui.side = 'buy'; ui.qty = 1; ui.period = 'day'; render(); window.scrollTo(0, 0); return; }
-    if (a === 'back') { ui.view = 'market'; render(); return; }
+    if (a === 'open') { ui.sel = t.dataset.code; ui.side = 'buy'; ui.qty = 1; ui.period = 'day'; openSub('detail'); return; }
+    if (a === 'back') { goBack(); return; }
     if (a === 'sort') { ui.sort = k; render(); return; }
     if (a === 'period') { ui.period = k; render(); return; }
     if (a === 'side') { ui.side = k; ui.qty = 1; renderSheet(); return; }

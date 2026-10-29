@@ -62,7 +62,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--down); outline-
 .fab-t { font-size: 13px; font-weight: 600; color: var(--soft); }
 .fab.ready { background: #1C7D51; cursor: pointer; padding: 0; }
 .fab.ready .fab-in { background: #1C7D51; }
-.fab.ready .fab-t { color: #FFFFFF; font-size: 16px; font-weight: 700; }
+.fab.ready .fab-t { color: #FFFFFF; font-size: 14px; font-weight: 700; letter-spacing: -0.3px; }
 @media (prefers-reduced-motion: no-preference) {
   .fab.ready { animation: ready 1.6s ease-in-out infinite; }
   .fab.ready:active { transform: scale(.94); }
@@ -294,7 +294,7 @@ body.busy button[data-action] { cursor: progress; }
     </button>
   </div>
 </nav>
-<button class="fab" id="fab" data-action="work-claim" type="button" aria-label="돈벌기"><span class="fab-in"><span class="fab-t num" id="fab-t">약 1만</span></span></button>
+<button class="fab" id="fab" data-action="work-claim" type="button" aria-label="돈벌기"><span class="fab-in"><span class="fab-t num" id="fab-t">돈벌기</span></span></button>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -584,7 +584,7 @@ body.busy button[data-action] { cursor: progress; }
     fab.style.setProperty('--p', ((1 - left / WORK_CD) * 360).toFixed(1) + 'deg');
     fab.classList.toggle('ready', ready);
     fab.disabled = !ready;
-    var txt = ready ? '약 ' + short(pay) : Math.ceil(left / 1000) + '초';
+    var txt = ready ? '돈벌기' : Math.ceil(left / 1000) + '초';
     var el = document.getElementById('fab-t');
     if (el.textContent !== txt) el.textContent = txt;
     fab.setAttribute('aria-label', ready ? '돈벌기: ' + payRange(pay) + ' 받기' : '돈벌기: ' + Math.ceil(left / 1000) + '초 후 다시 누를 수 있어요');

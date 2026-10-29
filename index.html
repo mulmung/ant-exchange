@@ -92,6 +92,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--down); outline-
 .auth-in:focus { border-color: var(--down); }
 .auth-err { margin: 0; color: var(--up); font-size: 13px; }
 body.busy button[data-action] { cursor: progress; }
+.bgm-btn { position: fixed; z-index: 6; left: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)); bottom: calc(66px + 16px + env(safe-area-inset-bottom, 0px)); width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+.bgm-btn .ic-on { display: none; }
+.bgm-btn.on { color: var(--live); border-color: #1C7D51; }
+.bgm-btn.on .ic-on { display: block; }
+.bgm-btn.on .ic-off { display: none; }
+@media (prefers-reduced-motion: no-preference) { .bgm-btn.on .ic-on { animation: bob 2.4s ease-in-out infinite; } }
+@keyframes bob { 50% { transform: translateY(-2px); } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -295,6 +302,11 @@ body.busy button[data-action] { cursor: progress; }
   </div>
 </nav>
 <button class="fab" id="fab" data-action="work-claim" type="button" aria-label="돈벌기"><span class="fab-in"><span class="fab-t num" id="fab-t">돈벌기</span></span></button>
+<audio id="bgm" src="bgm.mp3" loop preload="none"></audio>
+<button class="bgm-btn" id="bgm-btn" type="button" aria-pressed="false" aria-label="배경 음악 켜기">
+  <svg class="ic-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="17" cy="16" r="3"></circle></svg>
+  <svg class="ic-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="17" cy="16" r="3"></circle><path d="M3 3l18 18"></path></svg>
+</button>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -1064,6 +1076,7 @@ body.busy button[data-action] { cursor: progress; }
     app.innerHTML = v === 'detail' ? viewDetail() : v === 'portfolio' ? viewPortfolio() : v === 'news' ? viewNews() : v === 'bank' ? viewBank() : v === 'shop' ? viewShop() : v === 'profile' ? viewProfile() : v === 'ranking' ? viewRanking() : viewMarket(flash);
     document.getElementById('nav').hidden = v === 'detail';
     document.getElementById('fab').hidden = v === 'detail';
+    document.getElementById('bgm-btn').hidden = v === 'detail';
     var btns = document.querySelectorAll('.nav button');
     for (var i = 0; i < btns.length; i++) { var on = btns[i].dataset.view === v; btns[i].classList.toggle('on', on); if (on) btns[i].setAttribute('aria-current', 'page'); else btns[i].removeAttribute('aria-current'); }
     renderSheet();
@@ -1543,6 +1556,34 @@ body.busy button[data-action] { cursor: progress; }
       channel = sb.channel('market').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game' }, function () { refreshAll(true); }).subscribe();
     }
   }
+
+  // ---------- 배경 음악 ----------
+  var bgm = document.getElementById('bgm'), bgmBtn = document.getElementById('bgm-btn');
+  var bgmOn = false;
+  try { bgmOn = localStorage.getItem('ant-bgm') === '1'; } catch (e) {}
+  bgm.volume = 0.35;
+  function bgmPaint() {
+    bgmBtn.classList.toggle('on', bgmOn);
+    bgmBtn.setAttribute('aria-pressed', String(bgmOn));
+    bgmBtn.setAttribute('aria-label', bgmOn ? '배경 음악 끄기' : '배경 음악 켜기');
+  }
+  function bgmPlay() {
+    if (!bgmOn || document.hidden) return;
+    if (bgm.preload !== 'auto') bgm.preload = 'auto';
+    var pr = bgm.play();
+    if (pr && pr.catch) pr.catch(function () {});
+  }
+  bgmBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    bgmOn = !bgmOn;
+    try { localStorage.setItem('ant-bgm', bgmOn ? '1' : '0'); } catch (err) {}
+    bgmPaint();
+    if (bgmOn) bgmPlay(); else bgm.pause();
+  });
+  // 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 켜둔 상태면 첫 터치에 재생
+  document.addEventListener('pointerdown', function () { if (bgmOn && bgm.paused) bgmPlay(); }, true);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) bgm.pause(); else bgmPlay(); });
+  bgmPaint();
 
   ui.bk = { sav: 0, dep: 0, depTerm: '6', plan: 0, planTerm: '6', loan: 0, repay: 0 };
   state = blankState();

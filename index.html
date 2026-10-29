@@ -657,7 +657,52 @@ body.busy button[data-action] { cursor: progress; }
     return '<button class="chip' + (key === cur ? ' on' : '') + '" data-action="' + action + '" data-key="' + key + '" type="button" aria-pressed="' + (key === cur) + '">' + label + '</button>';
   }
 
+  // 최근 1시간을 3분봉 캔들로 (양봉 빨강, 음봉 파랑)
+  var CANDLE_TICKS = 3, CANDLE_COUNT = 20;
+  function candleSvg(s) {
+    var h = s.hist, n = h.length, span = CANDLE_TICKS * CANDLE_COUNT;
+    function priceAt(t) { var i = n - 1 - (state.tick - t); return i >= 0 && i < n ? h[i] : null; }
+    var firstGroup = Math.floor((state.tick - span + 1) / CANDLE_TICKS);
+    var lastGroup = Math.floor(state.tick / CANDLE_TICKS), candles = [];
+    for (var g = Math.max(firstGroup, lastGroup - CANDLE_COUNT + 1); g <= lastGroup; g++) {
+      var ps = [];
+      for (var t = g * CANDLE_TICKS; t < (g + 1) * CANDLE_TICKS && t <= state.tick; t++) { var v = priceAt(t); if (v != null) ps.push(v); }
+      if (!ps.length) continue;
+      var prevClose = priceAt(g * CANDLE_TICKS - 1);
+      var o = prevClose != null ? prevClose : ps[0], c = ps[ps.length - 1];
+      candles.push({ o: o, c: c, h: Math.max.apply(null, ps.concat([o])), l: Math.min.apply(null, ps.concat([o])), live: g === lastGroup });
+    }
+    if (!candles.length) candles.push({ o: s.prev, c: s.price, h: Math.max(s.prev, s.price), l: Math.min(s.prev, s.price), live: true });
+    var W = 360, H = 190, L = 6, R = 62, T = 14, B = 22;
+    var mx = Math.max.apply(null, candles.map(function (k) { return k.h; })), mn = Math.min.apply(null, candles.map(function (k) { return k.l; }));
+    var pad = (mx - mn) * 0.08 || mx * 0.01; var top = mx + pad, bot = mn - pad;
+    function y(p) { return T + (top - p) / (top - bot) * (H - T - B); }
+    var slot = (W - L - R) / CANDLE_COUNT, bw = Math.max(3, slot * 0.62);
+    var off = CANDLE_COUNT - candles.length;
+    var grid = '';
+    for (var gi = 0; gi < 4; gi++) { var gy = T + gi * (H - T - B) / 3; grid += '<line x1="' + L + '" y1="' + gy.toFixed(1) + '" x2="' + (W - R) + '" y2="' + gy.toFixed(1) + '" stroke="var(--surface-2)" stroke-width="1"></line>'; }
+    var avgBody = candles.reduce(function (a, k) { return a + Math.abs(k.c - k.o); }, 0) / candles.length || 1;
+    var body = '';
+    candles.forEach(function (k, i) {
+      var cx = L + (off + i + 0.5) * slot, up = k.c >= k.o, col = up ? 'var(--up)' : 'var(--down)';
+      var yt = y(Math.max(k.o, k.c)), yb = y(Math.min(k.o, k.c)), bh = Math.max(1.5, yb - yt);
+      body += '<line x1="' + cx.toFixed(1) + '" y1="' + y(k.h).toFixed(1) + '" x2="' + cx.toFixed(1) + '" y2="' + y(k.l).toFixed(1) + '" stroke="' + col + '" stroke-width="1.3"></line>' +
+        '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + yt.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="1" fill="' + col + '"' + (k.live ? ' fill-opacity="0.7"' : '') + '></rect>';
+      if (up && k.c - k.o >= avgBody * 2.2 && k.c > k.o) body += '<text x="' + cx.toFixed(1) + '" y="' + (y(k.h) - 5).toFixed(1) + '" fill="var(--up)" font-size="9" font-weight="700" text-anchor="middle" font-family="inherit">장대</text>';
+    });
+    var last = candles[candles.length - 1].c, ly = y(last);
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + s.name + ' 최근 1시간 3분봉 차트">' + grid + body +
+      '<line x1="' + L + '" y1="' + ly.toFixed(1) + '" x2="' + (W - R) + '" y2="' + ly.toFixed(1) + '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 4"></line>' +
+      '<text x="' + (W - R + 8) + '" y="' + (y(mx) + 4).toFixed(1) + '" fill="var(--soft)" font-size="11" font-family="inherit">' + fmt(mx) + '</text>' +
+      '<text x="' + (W - R + 8) + '" y="' + (y(mn) + 4).toFixed(1) + '" fill="var(--soft)" font-size="11" font-family="inherit">' + fmt(mn) + '</text>' +
+      (Math.abs(ly - y(mx)) > 14 && Math.abs(ly - y(mn)) > 14 ? '<text x="' + (W - R + 8) + '" y="' + (ly + 4).toFixed(1) + '" fill="var(--fg)" font-size="11" font-weight="600" font-family="inherit">' + fmt(last) + '</text>' : '') +
+      '<text x="' + L + '" y="' + (H - 6) + '" fill="var(--muted)" font-size="10" font-family="inherit">' + ago(state.tick - candles.length * CANDLE_TICKS + 1) + ' · 3분봉</text>' +
+      '<text x="' + (W - R) + '" y="' + (H - 6) + '" fill="var(--muted)" font-size="10" font-family="inherit" text-anchor="end">지금</text></svg>';
+    return svg;
+  }
+
   function chartSvg(s) {
+    if (ui.period === 'recent') return candleSvg(s);
     var pts;
     if (ui.period === 'recent') pts = s.hist.slice(-30);
     else if (ui.period === 'day') pts = s.hist.slice(-Math.max(2, state.tick - dayStartTick() + 1));
@@ -700,7 +745,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div style="display:flex;flex-direction:column;gap:2px"><span class="price-big num">' + fmt(s.price) + '원' + limitTag(s) + '</span>' +
       '<span class="num ' + cls(c) + '" style="font-size:14px;font-weight:600">' + (c > 0 ? '▲ ' : c < 0 ? '▼ ' : '') + fmt(Math.abs(c)) + ' (' + pct(chgPct(s)) + ') · 오늘</span></div>' +
       '<div class="chart-wrap">' + chartSvg(s) + '</div>' +
-      '<div class="period" role="group" aria-label="차트 기간">' + chip('period', 'recent', '최근', ui.period) + chip('period', 'day', '오늘', ui.period) + chip('period', 'all', '전체', ui.period) + '</div>';
+      '<div class="period" role="group" aria-label="차트 기간">' + chip('period', 'recent', '최근 1시간', ui.period) + chip('period', 'day', '오늘', ui.period) + chip('period', 'all', '전체', ui.period) + '</div>';
     html += '<div class="sec-head"><h2>' + s.name + ' 뉴스</h2>' + (sns.length > 3 ? '<button class="link" data-action="nav" data-view="news" data-key="' + s.code + '" type="button">전체 ' + sns.length + '건</button>' : '') + '</div>';
     if (sns.length) html += '<div class="news-list">' + sns.slice(0, 3).map(function (n) { return newsItem(n, false); }).join('') + '</div>';
     else html += '<div class="empty" style="padding:18px 16px">아직 이 종목 뉴스가 없어요.</div>';

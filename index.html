@@ -770,7 +770,15 @@ body.busy button[data-action] { cursor: progress; }
     return html;
   }
 
-  function maxQty(s) { return ui.side === 'buy' ? Math.floor(state.cash / s.price) : (state.hold[s.code] ? state.hold[s.code].qty : 0); }
+  // 거래세: 매수 0.1%, 매도 0.2% (1원 미만 올림) → 은행으로
+  var TAX_BUY = 0.001, TAX_SELL = 0.002;
+  function taxOf(amt, side) { return Math.ceil(amt * (side === 'buy' ? TAX_BUY : TAX_SELL) - 1e-9); }
+  function maxQty(s) {
+    if (ui.side !== 'buy') return state.hold[s.code] ? state.hold[s.code].qty : 0;
+    var q = Math.floor(state.cash / (s.price * (1 + TAX_BUY)));
+    while (q > 0 && s.price * q + taxOf(s.price * q, 'buy') > state.cash) q--;
+    return q;
+  }
 
   function sheetParts(s) {
     var mx = maxQty(s), buy = ui.side === 'buy', q = ui.qty;
@@ -779,8 +787,9 @@ body.busy button[data-action] { cursor: progress; }
     else if (q < 1) label = '수량을 입력해주세요';
     else if (q > mx) label = (buy ? '현금이 부족해요' : '보유 수량보다 많아요') + ' · 최대 ' + fmt(mx) + '주';
     else { label = fmt(q) + '주 ' + (buy ? '매수하기' : '매도하기'); ok = true; }
+    var amtN = s.price * Math.max(q, 0), taxN = taxOf(amtN, ui.side);
     return { mx: mx, ok: ok, label: label, over: q > mx,
-      amt: fmt(s.price * Math.max(q, 0)) + '원',
+      amt: fmt(amtN) + '원', tax: fmt(taxN) + '원', total: fmt(buy ? amtN + taxN : amtN - taxN) + '원',
       avail: buy ? fmt(state.cash) + '원 · 최대 ' + fmt(mx) + '주' : fmt(mx) + '주' };
   }
 
@@ -788,7 +797,10 @@ body.busy button[data-action] { cursor: progress; }
     var s = stock(ui.sel); if (!s) return;
     var p = sheetParts(s);
     var a = document.getElementById('sum-amt'), v = document.getElementById('sum-avail'), c = document.getElementById('cta');
-    if (a) { a.textContent = p.amt; a.classList.toggle('warn', p.over); }
+    if (a) { a.textContent = p.amt; }
+    var tx = document.getElementById('sum-tax'), tt = document.getElementById('sum-total');
+    if (tx) tx.textContent = p.tax;
+    if (tt) { tt.textContent = p.total; tt.classList.toggle('warn', p.over); }
     if (v) v.textContent = p.avail;
     if (c) { c.textContent = p.label; c.disabled = !p.ok; }
   }
@@ -809,7 +821,9 @@ body.busy button[data-action] { cursor: progress; }
       '<label class="qty-box"><input id="qty-input" class="num" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="주문 수량" value="' + (ui.qty > 0 ? ui.qty : '') + '" placeholder="0"><span>주</span></label>' +
       '<button data-action="qty" data-key="1" type="button" aria-label="수량 늘리기">+</button>' +
       '<button class="max" data-action="max" type="button">최대</button></div></div>' +
-      '<div class="sum"><div class="split"><span class="label">예상 금액</span><b class="num' + (p.over ? ' warn' : '') + '" id="sum-amt">' + p.amt + '</b></div>' +
+      '<div class="sum"><div class="split"><span class="label">주문 금액</span><span class="num" id="sum-amt">' + p.amt + '</span></div>' +
+      '<div class="split"><span class="label">거래세 (' + (buy ? '매수 0.1%' : '매도 0.2%') + ' · 은행으로)</span><span class="num" id="sum-tax">' + p.tax + '</span></div>' +
+      '<div class="split"><span class="label">' + (buy ? '총 결제 금액' : '받을 금액') + '</span><b class="num' + (p.over ? ' warn' : '') + '" id="sum-total">' + p.total + '</b></div>' +
       '<div class="split"><span class="label">' + (buy ? '주문 가능 현금' : '매도 가능 수량') + '</span><span class="num" id="sum-avail">' + p.avail + '</span></div></div>' +
       '<button class="cta ' + ui.side + '" id="cta" data-action="order" type="button"' + (p.ok ? '' : ' disabled') + '>' + p.label + '</button></section>';
   }
@@ -964,9 +978,10 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="bar" aria-hidden="true"><i style="width:' + (size ? lent / size * 100 : 0).toFixed(1) + '%;background:var(--up)"></i></div>' +
       '<div class="legend"><span><span class="sw" style="background:var(--up)"></span><span class="num">빌려준 돈 ' + krw(lent) + '</span></span>' +
       '<span><span class="sw" style="background:var(--line)"></span><span class="num">대출 가능 자금 ' + krw(b.vault) + '</span></span></div>' +
-      '<div class="split divider"><span class="label">누적 이자 수입</span><b class="num" style="color:var(--gold)">+' + krw(b.income) + '</b></div>' +
+      '<div class="split divider"><span class="label">누적 대출 이자 수입</span><b class="num" style="color:var(--gold)">+' + krw(b.income) + '</b></div>' +
+      '<div class="kv"><span class="label">누적 거래세 수입</span><b class="num" style="color:var(--gold)">+' + krw(state.bankStats.tax || 0) + '</b></div>' +
       '<div class="kv"><span class="label">대출 중인 참가자</span><span class="num">' + borrowers() + '명</span></div>' +
-      '<p class="note">처음 자금 1억 원으로 시작했어요. 참가자들이 내는 대출 이자가 은행 수입으로 쌓여서 은행이 커져요.</p></section>';
+      '<p class="note">처음 자금 1억 원으로 시작했어요. 참가자들이 내는 대출 이자와 주식 거래세(매수 0.1%, 매도 0.2%)가 은행 수입으로 쌓여서 은행이 커져요.</p></section>';
 
     // 대출
     var lim = loanLimit(), av = loanAvail(), due = loanInterestDue();
@@ -1210,7 +1225,7 @@ body.busy button[data-action] { cursor: progress; }
     state.news = res[2].map(function (n) { return { code: n.code, text: n.text, up: n.up, tick: n.tick, p: Number(n.price) }; });
     state.bank.vault = Number(res[3].vault);
     state.bank.income = Number(res[3].income);
-    state.bankStats = { lent: Number(res[3].lent), borrowers: res[3].borrowers, players: res[3].players };
+    state.bankStats = { lent: Number(res[3].lent), borrowers: res[3].borrowers, players: res[3].players, tax: Number(res[3].tax || 0) };
     nextAt = gameUpdatedAt + TICK_MS + 1500;
     if (nextAt < Date.now()) nextAt = Date.now() + 5000;
     return prevTick;
@@ -1341,7 +1356,7 @@ body.busy button[data-action] { cursor: progress; }
     if (qn < 1 || qn > mx) return;
     var r = await call('place_order', { p_code: s.code, p_side: side, p_qty: qn });
     if (!r) return;
-    toast(s.name + ' ' + qn + '주 ' + (side === 'buy' ? '매수' : '매도') + ' 완료 · ' + fmt(r.data.amt) + '원' + (r.data.xp ? ' · +' + r.data.xp + ' XP' : ''));
+    toast(s.name + ' ' + qn + '주 ' + (side === 'buy' ? '매수' : '매도') + ' 완료 · ' + fmt(r.data.amt) + '원 · 세금 ' + fmt(r.data.tax || 0) + '원' + (r.data.xp ? ' · +' + r.data.xp + ' XP' : ''));
     ui.qty = 1;
     await after(r);
   }

@@ -92,6 +92,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--down); outline-
 .auth-in:focus { border-color: var(--down); }
 .auth-err { margin: 0; color: var(--up); font-size: 13px; }
 body.busy button[data-action] { cursor: progress; }
+.switch { position: relative; width: 48px; height: 28px; border-radius: 999px; border: 0; background: var(--line); padding: 0; flex-shrink: 0; }
+.switch i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--soft); transition: transform .15s ease, background .15s ease; }
+.switch.on { background: #1C7D51; }
+.switch.on i { transform: translateX(20px); background: #FFFFFF; }
 .bgm-btn { position: fixed; z-index: 6; left: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)); bottom: calc(66px + 16px + env(safe-area-inset-bottom, 0px)); width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
 .bgm-btn .ic-on { display: none; }
 .bgm-btn.on { color: var(--live); border-color: #1C7D51; }
@@ -494,6 +498,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="kv"><span class="label">누적 경험치</span><span class="num">' + fmt(p.xp) + ' XP</span></div>' +
       '<div class="nick-row"><label for="nick-input" class="sr">닉네임</label><input id="nick-input" type="text" maxlength="10" autocomplete="off" enterkeyhint="done" value="' + esc(p.nick) + '" placeholder="닉네임 (최대 10자)">' +
       '<button class="ghost" data-action="nick-save" type="button">닉네임 변경</button></div>' +
+      '<div class="split" style="font-size:13px"><span class="label">버튼 효과음 (나무 키보드 소리)</span><button class="switch' + (sfxOn ? ' on' : '') + '" data-action="sfx-toggle" type="button" role="switch" aria-checked="' + sfxOn + '" aria-label="버튼 효과음"><i></i></button></div>' +
       '<div class="split" style="font-size:13px"><span class="label">로그인 아이디 · ' + esc(p.login || p.nick) + '</span><button class="link" data-action="logout" type="button">로그아웃</button></div></section>';
 
     html += '<div class="sec-head"><h2>칭호</h2><span class="label">' + TITLES.filter(function (x) { return x.lv <= info.lv; }).length + ' / ' + TITLES.length + ' 획득</span></div>' +
@@ -1140,6 +1145,7 @@ body.busy button[data-action] { cursor: progress; }
       return;
     }
     if (a === 'nick-save') { saveNick(); return; }
+    if (a === 'sfx-toggle') { setSfx(!sfxOn); render(); if (sfxOn) keyClick(); toast(sfxOn ? '버튼 효과음을 켰어요' : '버튼 효과음을 껐어요'); return; }
     if (a === 'work-claim' || a === 'work-up') { workAction(a); return; }
     if (/^(bk-add|loan-take|loan-repay|sav-in|sav-out|sav-out-all|dep-term|plan-term|dep-open|plan-open|cancel-ask|cancel-no|cancel-yes)$/.test(a)) { bankAction(a, k, t); return; }
     if (a === 'open') { ui.sel = t.dataset.code; ui.side = 'buy'; ui.qty = 1; ui.period = 'day'; openSub('detail'); return; }
@@ -1555,6 +1561,54 @@ body.busy button[data-action] { cursor: progress; }
     if (!channel) {
       channel = sb.channel('market').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game' }, function () { refreshAll(true); }).subscribe();
     }
+  }
+
+  // ---------- 버튼 효과음: 나무 키보드 '오도독' 소리를 직접 합성 ----------
+  var sfxOn = true, actx = null, noiseBuf = null;
+  try { sfxOn = localStorage.getItem('ant-sfx') !== '0'; } catch (e) {}
+  function audioCtx() {
+    if (!actx) {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      actx = new AC();
+      noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.06), actx.sampleRate);
+      var d = noiseBuf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function tick(ctx, t, freq, q, vol, len) {
+    var src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.001); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    src.connect(bp); bp.connect(g); g.connect(ctx.destination);
+    src.start(t); src.stop(t + len + 0.01);
+  }
+  function thock(ctx, t, f0, vol) {
+    var o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 0.55, t + 0.05);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.065);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + 0.08);
+  }
+  function keyClick() {
+    if (!sfxOn) return;
+    var ctx = audioCtx(); if (!ctx) return;
+    var t = ctx.currentTime + 0.002, r = 0.88 + Math.random() * 0.24;
+    thock(ctx, t, 190 * r, 0.32);                       // 나무 바닥에 닿는 둥근 소리
+    tick(ctx, t, 1900 * r, 1.4, 0.22, 0.035);           // 키캡이 바닥 치는 소리
+    tick(ctx, t + 0.018 + Math.random() * 0.01, 3200 * r, 2, 0.07, 0.02);  // 살짝 튕기는 두 번째 소리 (오도'독')
+  }
+  document.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest('button, a, [data-action]');
+    if (!el || el.disabled) return;
+    keyClick();
+  }, true);
+  function setSfx(on) {
+    sfxOn = on;
+    try { localStorage.setItem('ant-sfx', on ? '1' : '0'); } catch (e) {}
   }
 
   // ---------- 배경 음악 ----------

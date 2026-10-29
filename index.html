@@ -316,7 +316,7 @@ body.busy button[data-action] { cursor: progress; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 (function () {
-  var TICK_MS = 60000, DAY_TICKS = 120, START_CASH = 10000000, HIST_MAX = 360, SAVE_KEY = 'ant-exchange-v1';
+  var TICK_MS = 60000, DAY_TICKS = 120, START_CASH = 1000000, HIST_MAX = 360, SAVE_KEY = 'ant-exchange-v1';
   // 배당률: 게임 속 하루(120틱)가 끝날 때 1회 지급되는 비율(%)
   var DIV = { HBE: 1.5, CRS: 0.3, PRB: 0, BYE: 0.8, DRH: 2.2, BDS: 2.5, GRE: 2.0, GRS: 0.5 };
   var GOOD = ['{n}, 신제품 공개… 매수세 몰려', '{n}, 대형 수주 계약 체결', '{n}, 분기 실적 예상치 상회', '{n}, 해외 시장 진출 발표', '외국인, {n} 대량 순매수', '{n}, 자사주 매입 결정'];
@@ -555,7 +555,7 @@ body.busy button[data-action] { cursor: progress; }
   // 돈벌기 레벨 Lv.1~10: 최소~최대 사이 1원 단위 랜덤 (서버 work_min / work_max / work_cost 와 같은 값)
   var WORK_MIN = [1, 10000, 50000, 200000, 500000, 1000000, 2500000, 5000000, 10000000, 17500000];
   var WORK_MAX = [10000, 50000, 200000, 500000, 1000000, 2500000, 5000000, 10000000, 17500000, 30000000];
-  var WORK_COST = [0, 15000000, 65000000, 180000000, 350000000, 1000000000, 2200000000, 4500000000, 8000000000, 14000000000];
+  var WORK_COST = [0, 1500000, 6500000, 18000000, 35000000, 100000000, 220000000, 450000000, 800000000, 1400000000];
   var JOBS = WORK_MIN.map(function (lo, i) {
     return { min: lo, max: WORK_MAX[i], pay: (lo + WORK_MAX[i]) / 2, cost: WORK_COST[i] };
   });
@@ -926,7 +926,7 @@ body.busy button[data-action] { cursor: progress; }
       return html;
     }
     html += '<div class="reset">' + (ui.confirmReset
-      ? '<span style="color:var(--soft);font-size:13px">자산과 거래 내역이 모두 지워지고 1,000만 원으로 다시 시작해요.</span><div style="display:flex;gap:8px"><button class="danger" data-action="reset-confirm" type="button">새 게임 시작</button><button class="ghost" data-action="reset-cancel" type="button">취소</button></div>'
+      ? '<span style="color:var(--soft);font-size:13px">자산과 거래 내역이 모두 지워지고 100만 원으로 다시 시작해요.</span><div style="display:flex;gap:8px"><button class="danger" data-action="reset-confirm" type="button">새 게임 시작</button><button class="ghost" data-action="reset-cancel" type="button">취소</button></div>'
       : '<button class="ghost" data-action="reset-ask" type="button">처음부터 다시 하기</button>') + '</div>';
     return html;
   }
@@ -1165,7 +1165,7 @@ body.busy button[data-action] { cursor: progress; }
       call('reset_game').then(function (r) {
         if (!r) return;
         ui.confirmReset = false; ui.view = 'market';
-        toast('새로 시작했어요. 시작 자금 1,000만 원');
+        toast('새로 시작했어요. 시작 자금 100만 원');
         after(r); window.scrollTo(0, 0);
       });
     }
@@ -1488,7 +1488,7 @@ body.busy button[data-action] { cursor: progress; }
       (authUi.err ? '<p class="auth-err" role="alert">' + esc(authUi.err) + '</p>' : '') +
       '<button class="cta buy" type="submit"' + (authUi.loading ? ' disabled' : '') + '>' + (authUi.loading ? '잠시만요…' : signup ? '가입하고 시작하기' : '로그인') + '</button>' +
       '</form>' +
-      '<p class="note" style="text-align:center">' + (signup ? '가입하면 1,000만 원으로 시작해요. 처음 정한 닉네임이 로그인 아이디가 돼요.' : '비밀번호를 잊어버렸다면 게임 관리자에게 말해주세요.') + '</p></div>';
+      '<p class="note" style="text-align:center">' + (signup ? '가입하면 100만 원으로 시작해요. 처음 정한 닉네임이 로그인 아이디가 돼요.' : '비밀번호를 잊어버렸다면 게임 관리자에게 말해주세요.') + '</p></div>';
   }
 
   document.addEventListener('submit', async function (e) {
@@ -1514,7 +1514,7 @@ body.busy button[data-action] { cursor: progress; }
       var r = await sb.auth.signInWithPassword({ email: loginEmail(nick), password: pw });
       if (r.error) throw r.error;
       authUi.loading = false;
-      if (authUi.mode === 'signup') toast('가입 완료! 1,000만 원으로 시작해요');
+      if (authUi.mode === 'signup') toast('가입 완료! 100만 원으로 시작해요');
     } catch (err) {
       authUi.loading = false; authUi.err = errMsg(err); renderAuth(nick);
     }

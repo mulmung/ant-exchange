@@ -552,12 +552,12 @@ body.busy button[data-action] { cursor: progress; }
 
   // ---------- side job (1분 버튼) ----------
   var WORK_CD = 60000;
-  // 돈벌기 레벨: 한 번에 받는 금액. 다음 레벨 가격 = 이전 레벨 금액 × 필요 횟수(150번부터 레벨마다 +50번)
-  var PAYS = [10000, 100000, 500000, 1000000, 2000000, 3000000, 5000000, 7000000, 10000000, 15000000,
-    20000000, 30000000, 40000000, 50000000, 70000000, 100000000, 150000000, 200000000, 300000000, 500000000];
-  var JOBS = PAYS.map(function (pay, i) {
-    var clicks = i === 0 ? 0 : 150 + 50 * (i - 1);
-    return { pay: pay, clicks: clicks, cost: i === 0 ? 0 : clicks * PAYS[i - 1] };
+  // 돈벌기 레벨 Lv.1~10: 최소~최대 사이 1원 단위 랜덤 (서버 work_min / work_max / work_cost 와 같은 값)
+  var WORK_MIN = [1, 10000, 50000, 200000, 500000, 1000000, 2500000, 5000000, 10000000, 17500000];
+  var WORK_MAX = [10000, 50000, 200000, 500000, 1000000, 2500000, 5000000, 10000000, 17500000, 30000000];
+  var WORK_COST = [0, 15000000, 65000000, 180000000, 350000000, 1000000000, 2200000000, 4500000000, 8000000000, 14000000000];
+  var JOBS = WORK_MIN.map(function (lo, i) {
+    return { min: lo, max: WORK_MAX[i], pay: (lo + WORK_MAX[i]) / 2, cost: WORK_COST[i] };
   });
   function short(n) { return n >= 1e8 ? (Math.round(n / 1e7) / 10).toLocaleString('ko-KR') + '억' : fmt(n / 1e4) + '만'; }
   function krw(n) {
@@ -566,7 +566,7 @@ body.busy button[data-action] { cursor: progress; }
     return (e ? fmt(e) + '억' + (m ? ' ' : '') : '') + (m ? fmt(m) + '만' : '') + '원';
   }
   function krwX(n) { return n % 10000 ? fmt(n) + '원' : krw(n); }
-  function payRange(base) { return krwX(Math.floor(base * 0.5)) + ' ~ ' + krwX(Math.floor(base * 1.5)); }
+  function payRange(j) { return krwX(j.min) + ' ~ ' + krwX(j.max); }
   function workLeft() { return Math.max(0, WORK_CD - (Date.now() - state.work.last)); }
 
   function viewShop() {
@@ -574,12 +574,12 @@ body.busy button[data-action] { cursor: progress; }
     var html = '<header class="topbar"><h1 class="brand">상점</h1><span class="pill"><span class="num">보유 현금 ' + krw(state.cash) + '</span></span></header>' +
       '<section class="card" aria-label="돈벌기 버튼"><div class="split"><div style="display:flex;flex-direction:column;gap:4px">' +
       '<span class="label">돈벌기 버튼</span><span class="big num">Lv.' + (w.tier + 1) + '</span>' +
-      '<span style="font-size:13px;color:var(--soft)">1분마다 한 번, ' + payRange(cur.pay) + ' 랜덤</span></div>' +
-      '<span class="shop-fab" aria-hidden="true">+' + short(cur.pay) + '</span></div>' +
+      '<span style="font-size:13px;color:var(--soft)">1분마다 한 번, ' + payRange(cur) + ' 랜덤</span></div>' +
+      '<span class="shop-fab" aria-hidden="true">~' + short(cur.max) + '</span></div>' +
       '<div class="split divider"><span class="label">지금까지 번 돈</span><b class="num" style="color:var(--live)">+' + krw(w.earned) + '</b></div>' +
       '<div class="split" style="font-size:13px"><span class="label">누른 횟수</span><span class="num">' + fmt(w.clicks) + '번</span></div></section>' +
       '<div class="sec-head"><h2>돈벌기 레벨업</h2></div>' +
-      '<p class="note" style="margin:-8px 0 0">오른쪽 아래 버튼을 누르면 평균 금액의 50%~150% 사이에서 랜덤으로 받아요. 레벨을 올리면 평균 금액이 올라가요. 최고 Lv.20까지 있어요. 레벨은 차례대로만 올릴 수 있고, 한 번 산 레벨은 되돌릴 수 없어요.</p>' +
+      '<p class="note" style="margin:-8px 0 0">오른쪽 아래 버튼을 누르면 레벨별 최소~최대 금액 사이에서 1원 단위로 랜덤하게 받아요. 최고 Lv.10까지 있어요. 레벨은 차례대로만 올릴 수 있고, 한 번 산 레벨은 되돌릴 수 없어요.</p>' +
       '<div class="shop-list">';
     JOBS.forEach(function (j, i) {
       var owned = i <= w.tier, next = i === w.tier + 1, now = i === w.tier;
@@ -590,7 +590,9 @@ body.busy button[data-action] { cursor: progress; }
       else right = '<span class="shop-price num">' + krw(j.cost) + '</span>';
       html += '<div class="shop-row' + (now ? ' now' : '') + (!owned && !next ? ' locked' : '') + '">' +
         '<span class="shop-lv num">Lv.' + (i + 1) + '</span>' +
-        '<span class="shop-main"><b class="num">한 번에 평균 ' + krw(j.pay) + '</b><span>' + payRange(j.pay) + ' · ' + (i === 0 ? '기본' : '가격은 Lv.' + i + ' 평균으로 ' + fmt(j.clicks) + '번' + (next && state.cash < j.cost ? ' · 남은 ' + fmt(Math.ceil((j.cost - state.cash) / JOBS[i - 1].pay)) + '번' : '')) + '</span></span>' + right + '</div>';
+        '<span class="shop-main"><b class="num">' + payRange(j) + '</b><span>평균 ' + krwX(Math.round(j.pay)) +
+        (i === 0 ? ' · 기본' : ' · Lv.' + i + '로 약 ' + fmt(Math.ceil(j.cost / JOBS[i - 1].pay)) + '번' +
+          (next && state.cash < j.cost ? ' · 남은 ' + fmt(Math.ceil((j.cost - state.cash) / JOBS[i - 1].pay)) + '번' : '')) + '</span></span>' + right + '</div>';
     });
     return html + '</div>';
   }
@@ -604,7 +606,7 @@ body.busy button[data-action] { cursor: progress; }
     var txt = ready ? '돈벌기' : Math.ceil(left / 1000) + '초';
     var el = document.getElementById('fab-t');
     if (el.textContent !== txt) el.textContent = txt;
-    fab.setAttribute('aria-label', ready ? '돈벌기: ' + payRange(pay) + ' 받기' : '돈벌기: ' + Math.ceil(left / 1000) + '초 후 다시 누를 수 있어요');
+    fab.setAttribute('aria-label', ready ? '돈벌기: ' + payRange(JOBS[state.work.tier]) + ' 받기' : '돈벌기: ' + Math.ceil(left / 1000) + '초 후 다시 누를 수 있어요');
   }
 
 
@@ -1389,8 +1391,8 @@ body.busy button[data-action] { cursor: progress; }
       if (!r) { w.last = keep; updateWork(); return; }
       var pay = Number(r.data.pay);
       state.cash += pay; w.earned += pay; w.clicks++;
-      var base = Number(r.data.base) || JOBS[w.tier].pay, rt = pay / base;
-      toast((rt >= 1.4 ? '대박! ' : rt <= 0.6 ? '아쉽다… ' : '') + '+' + fmt(pay) + '원');
+      var lo = Number(r.data.min) || JOBS[w.tier].min, hi = Number(r.data.max) || JOBS[w.tier].max, rt = hi > lo ? (pay - lo) / (hi - lo) : 0.5;
+      toast((rt >= 0.9 ? '대박! ' : rt <= 0.1 ? '아쉽다… ' : '') + '+' + fmt(pay) + '원');
       safeRender();
       loadMe().then(function () { safeRender(); }).catch(function () {});
       return;
@@ -1401,7 +1403,7 @@ body.busy button[data-action] { cursor: progress; }
       if (state.cash < nx.cost) { toast('현금이 ' + krw(nx.cost - state.cash) + ' 부족해요'); return; }
       var r2 = await call('buy_work_level');
       if (!r2) return;
-      toast('돈벌기 Lv.' + (w.tier + 2) + ' · 이제 한 번에 ' + payRange(nx.pay));
+      toast('돈벌기 Lv.' + (w.tier + 2) + ' · 이제 한 번에 ' + payRange(nx));
       await after(r2);
     }
   }

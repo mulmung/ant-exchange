@@ -1601,7 +1601,8 @@ body.busy button[data-action] { cursor: progress; }
     tick(ctx, t, 1900 * r, 1.4, 0.22, 0.035);           // 키캡이 바닥 치는 소리
     tick(ctx, t + 0.018 + Math.random() * 0.01, 3200 * r, 2, 0.07, 0.02);  // 살짝 튕기는 두 번째 소리 (오도'독')
   }
-  document.addEventListener('pointerdown', function (e) {
+  // 손을 뗄 때 '눌렀다'고 확정된 경우(click)에만 소리. 스크롤하려고 화면을 끌 때는 click이 안 생겨서 소리가 안 남
+  document.addEventListener('click', function (e) {
     var el = e.target.closest('button, a, [data-action]');
     if (!el || el.disabled) return;
     keyClick();

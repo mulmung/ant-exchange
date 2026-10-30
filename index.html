@@ -138,6 +138,10 @@ body.busy button[data-action] { cursor: progress; }
 .bank-tab.on b { color: var(--gold); }
 .bank-tab.on span { color: var(--fg); }
 .bank-tab.warn span { color: var(--up); }
+.asset-bar { position: relative; }
+.loan-seg { position: absolute; top: 0; right: 0; bottom: 0; display: block; border-radius: 0 999px 999px 0;
+  background: repeating-linear-gradient(135deg, var(--up) 0 4px, rgba(255,107,112,.55) 4px 8px); box-shadow: -2px 0 0 var(--bg); }
+.loan-sw { background: var(--up); flex-shrink: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -950,11 +954,12 @@ body.busy button[data-action] { cursor: progress; }
     var html = '<header class="topbar stick"><h1 class="brand">내 자산</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">5</b>초</span></span></header>' +
       '<section class="card" aria-label="자산 요약">' + meChip() + '<div style="display:flex;flex-direction:column;gap:4px"><span class="label">총 자산</span>' +
       '<span class="big num">' + fmt(total) + '원</span><span class="num ' + cls(ret) + '" style="font-size:13px;font-weight:600">전체 수익률 ' + pct(ret) + ' · 시작 자금 ' + fmt(START_CASH) + '원</span>' + mySeasonLine() + '</div>' +
-      '<div class="bar" aria-hidden="true"><i style="width:' + (gross ? stockV / gross * 100 : 0).toFixed(1) + '%"></i><i style="background:var(--gold);width:' + (gross ? bankPrincipal() / gross * 100 : 0).toFixed(1) + '%"></i></div>' +
+      '<div class="bar asset-bar" aria-hidden="true"><i style="width:' + (gross ? stockV / gross * 100 : 0).toFixed(1) + '%"></i><i style="background:var(--gold);width:' + (gross ? bankPrincipal() / gross * 100 : 0).toFixed(1) + '%"></i>' +
+        (state.bank.loan && gross ? '<b class="loan-seg" style="width:' + Math.min(100, state.bank.loan / gross * 100).toFixed(1) + '%"></b>' : '') + '</div>' +
       '<div class="legend"><span><span class="sw" style="background:var(--down)"></span><span class="num">주식 ' + fmt(stockV) + '원</span></span>' +
       '<span><span class="sw" style="background:var(--gold)"></span><span class="num">은행 ' + fmt(bankPrincipal()) + '원</span></span>' +
       '<span><span class="sw" style="background:var(--line)"></span><span class="num">현금 ' + fmt(state.cash) + '원</span></span></div>' +
-      (state.bank.loan ? '<div class="split" style="font-size:13px"><span class="label">대출 (총 자산에서 뺐어요)</span><b class="num up">−' + fmt(state.bank.loan) + '원</b></div>' : '') +
+      (state.bank.loan ? '<div class="split" style="font-size:13px"><span class="label" style="display:flex;align-items:center;gap:6px"><span class="sw loan-sw"></span>대출 · 가진 돈의 ' + Math.round(state.bank.loan / Math.max(gross, 1) * 100) + '%가 빌린 돈 (총 자산에서 뺐어요)</span><b class="num up">−' + fmt(state.bank.loan) + '원</b></div>' : '') +
       '<div class="split divider"><span class="label">평가 손익</span><b class="num ' + cls(pnl) + '">' + signed(pnl) + '원 (' + pct(pnlP) + ')</b></div>' +
       '<div class="split" style="font-size:13px"><span class="label">돈벌기 수입 누적</span><b class="num" style="color:var(--live)">+' + fmt(state.work.earned) + '원</b></div>' +
       '<div class="split" style="font-size:13px"><span class="label">받은 배당금 누적</span><b class="num" style="color:var(--gold)">+' + fmt(state.divTotal || 0) + '원</b></div>' +

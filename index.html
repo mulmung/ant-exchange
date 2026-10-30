@@ -110,6 +110,15 @@ body.busy button[data-action] { cursor: progress; }
 .past { display: flex; flex-direction: column; gap: 8px; }
 .past-row { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--surface); font-size: 13px; }
 .past-row > span { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--soft); }
+.shelf { gap: 14px; }
+.shelf-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.shelf-n { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; background: var(--bg); }
+.shelf-n b { font-size: 20px; color: var(--fg); }
+.shelf-n span { font-size: 11px; color: var(--muted); }
+.shelf-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.shelf-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 4px; border-radius: 12px; border: 1px solid; text-align: center; }
+.shelf-item b { font-size: 13px; }
+.shelf-item span { font-size: 11px; color: var(--soft); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -518,7 +527,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="split" style="font-size:13px"><span class="label">버튼 효과음 (나무 키보드 소리)</span><button class="switch' + (sfxOn ? ' on' : '') + '" data-action="sfx-toggle" type="button" role="switch" aria-checked="' + sfxOn + '" aria-label="버튼 효과음"><i></i></button></div>' +
       '<div class="split" style="font-size:13px"><span class="label">로그인 아이디 · ' + esc(p.login || p.nick) + '</span><button class="link" data-action="logout" type="button">로그아웃</button></div></section>';
 
-    if ((p.badges || []).length) html += '<div class="sec-head"><h2>시즌 뱃지</h2><span class="label">' + p.badges.length + '개</span></div><div>' + badgeHtml(p.badges.slice()).replace('class="badges"', 'class="badges big"') + '</div>';
+    html += badgeShelf(p.badges || []);
     html += '<div class="sec-head"><h2>칭호</h2><span class="label">' + TITLES.filter(function (x) { return x.lv <= info.lv; }).length + ' / ' + TITLES.length + ' 획득</span></div>' +
       '<p class="note" style="margin:-8px 0 0">획득한 칭호 중 하나를 골라 달 수 있어요. 닉네임 색은 단 칭호를 따라가요.</p><div class="title-grid">';
     TITLES.forEach(function (x, i) {
@@ -983,6 +992,30 @@ body.busy button[data-action] { cursor: progress; }
         esc(b.s.replace(' 시즌', '')) + ' ' + m[2] + '</span>';
     }).join('') + '</span>';
   }
+  // 내 시즌 뱃지 보관함: 받은 뱃지를 전부 모아 보여줌 (처음부터 다시 해도 유지)
+  function badgeShelf(list) {
+    var cnt = { 1: 0, 2: 0, 3: 0 };
+    list.forEach(function (b) { cnt[b.r] = (cnt[b.r] || 0) + 1; });
+    var html = '<div class="sec-head"><h2>시즌 뱃지 보관함</h2><span class="label">' + list.length + '개</span></div>' +
+      '<section class="card shelf" aria-label="시즌 뱃지 보관함"><div class="shelf-sum">' +
+      [1, 2, 3].map(function (r) {
+        var m = MEDAL[r];
+        return '<div class="shelf-n" style="color:' + m[0] + '"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"></path></svg>' +
+          '<b class="num">' + cnt[r] + '</b><span>' + m[2] + '</span></div>';
+      }).join('') + '</div>';
+    if (!list.length) {
+      html += '<p class="note" style="margin:0;text-align:center">아직 받은 뱃지가 없어요. 시즌을 1~3위로 마치면 여기에 모여요.' + (state.season ? '<br>' + esc(state.season.name) + ' 마감까지 ' + seasonLeft().replace(' 남음', '') + '.' : '') + '</p>';
+    } else {
+      html += '<div class="shelf-list">' + list.slice().reverse().map(function (b) {
+        var m = MEDAL[b.r] || MEDAL[3];
+        return '<div class="shelf-item" style="border-color:' + m[0] + '55;background:' + m[1] + '">' +
+          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="' + m[0] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"></path></svg>' +
+          '<b style="color:' + m[0] + '">' + (b.r === 1 ? '우승' : b.r + '위') + '</b><span>' + esc(b.s) + '</span></div>';
+      }).join('') + '</div>';
+    }
+    return html + '</section>';
+  }
+
   function seasonLeft() {
     if (!state.season) return '';
     var ms = state.season.end - Date.now();

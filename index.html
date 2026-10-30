@@ -130,6 +130,14 @@ body.busy button[data-action] { cursor: progress; }
   padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: 10px; padding-bottom: 8px; }
 .rank-head { display: flex; flex-direction: column; gap: 4px; }
 .rank-head .sub { margin: 0; }
+.bank-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.bank-tab { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 9px 2px; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.bank-tab b { font-size: 12px; font-weight: 600; color: var(--soft); white-space: nowrap; }
+.bank-tab span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.bank-tab.on { background: #2A2616; border-color: var(--gold); }
+.bank-tab.on b { color: var(--gold); }
+.bank-tab.on span { color: var(--fg); }
+.bank-tab.warn span { color: var(--up); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1117,6 +1125,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="split divider"><span class="label">이자 지급</span><span class="num">' + timeLeft(DAY_TICKS - state.tick % DAY_TICKS) + ' 후 · Day ' + day() + ' 마감</span></div>' +
       '<div class="split" style="font-size:13px"><span class="label">보유 현금</span><span class="num">' + fmt(state.cash) + '원</span></div></section>';
 
+    var cut0 = html.length;
     // 은행 현황
     var size = bankSize(), lent = lentTotal(), growth = (size / VAULT0 - 1) * 100;
     html += '<section class="card" aria-label="은행 현황"><div class="split"><h2 style="margin:0;font-size:16px">은행 현황</h2>' +
@@ -1130,6 +1139,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="kv"><span class="label">대출 중인 참가자</span><span class="num">' + borrowers() + '명</span></div>' +
       '<p class="note">처음 자금 1억 원으로 시작했어요. 참가자들이 내는 대출 이자와 주식 거래세(매수 0.1%, 매도 0.2%)가 은행 수입으로 쌓여서 은행이 커져요.</p></section>';
 
+    var cut1 = html.length;
     // 대출
     var lim = loanLimit(), av = loanAvail(), due = loanInterestDue();
     html += '<section class="card product" aria-label="대출"><div class="split"><h2>대출</h2><span class="tag up">하루 ' + LOAN_RATE + '%</span></div>' +
@@ -1147,6 +1157,7 @@ body.busy button[data-action] { cursor: progress; }
     }
     html += '</section>';
 
+    var cut2 = html.length;
     // 자유 예금
     html += '<section class="card product" aria-label="자유 예금"><div class="split"><h2>자유 예금</h2><span class="tag gold">하루 ' + SAV_RATE + '%</span></div>' +
       '<p class="note">언제든 넣고 뺄 수 있어요. 이자는 하루 동안 계속 넣어둔 금액에만 붙어서, 오늘 넣은 돈은 내일 마감부터 이자가 나와요.</p>' +
@@ -1156,6 +1167,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="btn-row"><button class="btn-gold" data-action="sav-in" type="button">입금</button><button class="btn-line" data-action="sav-out" type="button">출금</button>' +
       (b.sav ? '<button class="ghost small" data-action="sav-out-all" type="button">전액 출금</button>' : '') + '</div></section>';
 
+    var cut3 = html.length;
     // 정기 예금
     var dterm = ui.bk.depTerm, drate = DEP_TERMS[dterm], damt = ui.bk.dep || 0;
     html += '<section class="card product" aria-label="정기 예금"><div class="split"><h2>정기 예금</h2><span class="tag gold">최대 하루 0.3%</span></div>' +
@@ -1172,6 +1184,7 @@ body.busy button[data-action] { cursor: progress; }
     });
     html += '</section>';
 
+    var cut4 = html.length;
     // 적금
     var pterm = ui.bk.planTerm, prate = PLAN_TERMS[pterm];
     html += '<section class="card product" aria-label="적금"><div class="split"><h2>적금</h2><span class="tag gold">최대 하루 0.4%</span></div>' +
@@ -1190,6 +1203,7 @@ body.busy button[data-action] { cursor: progress; }
     });
     html += '</section>';
 
+    var cut5 = html.length;
     if (b.log.length) {
       html += '<div class="sec-head"><h2>은행 거래 내역</h2></div><div class="trades">';
       b.log.slice(0, 10).forEach(function (x) {
@@ -1200,7 +1214,22 @@ body.busy button[data-action] { cursor: progress; }
       });
       html += '</div>';
     }
-    return html;
+    // 은행 상품은 버튼으로 하나씩 보기 (위 요약, 아래 거래 내역은 그대로)
+    var secs = { status: html.slice(cut0, cut1), loan: html.slice(cut1, cut2), sav: html.slice(cut2, cut3), dep: html.slice(cut3, cut4), plan: html.slice(cut4, cut5) };
+    var tab = secs[ui.bankTab] ? ui.bankTab : 'sav';
+    var tabs = [
+      ['status', '은행 현황', krw(bankSize()).replace('원', '')],
+      ['loan', '대출', b.loan ? krw(b.loan).replace('원', '') : '없음'],
+      ['sav', '자유 예금', b.sav ? krw(b.sav).replace('원', '') : '0'],
+      ['dep', '정기 예금', b.deps.length ? b.deps.length + '개' : '없음'],
+      ['plan', '적금', b.plans.length ? b.plans.length + '개' : '없음']
+    ];
+    var nav = '<div class="bank-tabs" role="tablist" aria-label="은행 메뉴">' + tabs.map(function (t) {
+      var on = t[0] === tab;
+      return '<button class="bank-tab' + (on ? ' on' : '') + (t[0] === 'loan' && b.loan ? ' warn' : '') + '" role="tab" aria-selected="' + on + '" data-action="bank-tab" data-key="' + t[0] + '" type="button">' +
+        '<b>' + t[1] + '</b><span class="num">' + t[2] + '</span></button>';
+    }).join('') + '</div>';
+    return html.slice(0, cut0) + nav + secs[tab] + html.slice(cut5);
   }
 
 
@@ -1271,6 +1300,7 @@ body.busy button[data-action] { cursor: progress; }
     }
     if (a === 'newsf') { ui.newsFilter = k; render(); return; }
     if (a === 'rank-tab') { ui.rankTab = k; render(); return; }
+    if (a === 'bank-tab') { ui.bankTab = k; ui.cancel = null; render(); return; }
     if (a === 'equip') {
       call('set_equip', { p_idx: Number(k) }).then(function (r) { if (r) { toast('칭호 「' + TITLES[Number(k)].name + '」을 달았어요'); after(r); } });
       return;

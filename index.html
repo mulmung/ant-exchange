@@ -140,7 +140,7 @@ body.busy button[data-action] { cursor: progress; }
 .bank-tab.warn span { color: var(--up); }
 .asset-bar { position: relative; }
 .loan-seg { position: absolute; top: 0; right: 0; bottom: 0; display: block; border-radius: 0 999px 999px 0;
-  background: repeating-linear-gradient(135deg, var(--up) 0 4px, rgba(255,107,112,.55) 4px 8px); box-shadow: -2px 0 0 var(--bg); }
+  background: var(--up); box-shadow: -2px 0 0 var(--surface); }
 .loan-sw { background: var(--up); flex-shrink: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
@@ -948,14 +948,15 @@ body.busy button[data-action] { cursor: progress; }
 
   function viewPortfolio() {
     var total = myTotal(), stockV = holdValue(state.hold), ret = (total / START_CASH - 1) * 100;
-    var gross = stockV + bankPrincipal() + state.cash;   // 막대는 대출 빼기 전 보유 자산 기준 (주식 + 은행 + 현금 = 100%)
+    var gross = stockV + bankPrincipal() + state.cash;
+    var barTotal = gross + (state.bank.loan || 0);   // 막대 전체 = 가진 돈 전부 + 대출 (주식 · 은행 · 현금 · 대출)
     var cost = 0; for (var c in state.hold) cost += state.hold[c].cost;
     var pnl = stockV - cost, pnlP = cost ? pnl / cost * 100 : 0;
     var html = '<header class="topbar stick"><h1 class="brand">내 자산</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">5</b>초</span></span></header>' +
       '<section class="card" aria-label="자산 요약">' + meChip() + '<div style="display:flex;flex-direction:column;gap:4px"><span class="label">총 자산</span>' +
       '<span class="big num">' + fmt(total) + '원</span><span class="num ' + cls(ret) + '" style="font-size:13px;font-weight:600">전체 수익률 ' + pct(ret) + ' · 시작 자금 ' + fmt(START_CASH) + '원</span>' + mySeasonLine() + '</div>' +
-      '<div class="bar asset-bar" aria-hidden="true"><i style="width:' + (gross ? stockV / gross * 100 : 0).toFixed(1) + '%"></i><i style="background:var(--gold);width:' + (gross ? bankPrincipal() / gross * 100 : 0).toFixed(1) + '%"></i>' +
-        (state.bank.loan && gross ? '<b class="loan-seg" style="width:' + Math.min(100, state.bank.loan / gross * 100).toFixed(1) + '%"></b>' : '') + '</div>' +
+      '<div class="bar asset-bar" aria-hidden="true"><i style="width:' + (barTotal ? stockV / barTotal * 100 : 0).toFixed(1) + '%"></i><i style="background:var(--gold);width:' + (barTotal ? bankPrincipal() / barTotal * 100 : 0).toFixed(1) + '%"></i>' +
+        (state.bank.loan && barTotal ? '<b class="loan-seg" style="width:' + (state.bank.loan / barTotal * 100).toFixed(1) + '%"></b>' : '') + '</div>' +
       '<div class="legend"><span><span class="sw" style="background:var(--down)"></span><span class="num">주식 ' + fmt(stockV) + '원</span></span>' +
       '<span><span class="sw" style="background:var(--gold)"></span><span class="num">은행 ' + fmt(bankPrincipal()) + '원</span></span>' +
       '<span><span class="sw" style="background:var(--line)"></span><span class="num">현금 ' + fmt(state.cash) + '원</span></span></div>' +

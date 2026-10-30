@@ -1204,6 +1204,12 @@ body.busy button[data-action] { cursor: progress; }
       html += '<div class="acct"><div class="split"><b>적금 ' + p.term + '일 · 하루 ' + p.rate + '%</b><span class="num">매일 ' + fmt(p.amt) + '원</span></div>' +
         '<div class="kv"><span class="label">납입</span><span class="num">' + p.paid.length + ' / ' + p.term + '회' + (p.missed ? ' · <span class="warn">미납 ' + p.missed + '회</span>' : '') + '</span></div>' +
         '<div class="kv"><span class="label">현재 적립액</span><b class="num">' + fmt(planPaid(p)) + '원</b></div>' +
+        (function () {
+          var nb = (Math.floor(state.tick / DAY_TICKS) + 1) * DAY_TICKS, left = timeLeft(nb - state.tick);
+          if (nb >= p.end) return '<div class="kv"><span class="label">다음 납입</span><span class="num">없음 · 다음 마감(' + left + ' 후)에 만기</span></div>';
+          var short = state.cash < p.amt;
+          return '<div class="kv"><span class="label">다음 납입</span><span class="num' + (short ? ' warn' : '') + '">' + left + ' 후 · ' + fmt(p.amt) + '원' + (short ? ' · 현금 부족' : '') + '</span></div>';
+        })() +
         '<div class="kv"><span class="label">만기까지</span><span class="num">' + timeLeft(p.end - state.tick) + '</span></div>' +
         '<div class="kv"><span class="label">만기 예상 수령액</span><b class="num" style="color:var(--gold)">' + fmt(planProjected(p)) + '원</b></div>' +
         cancelBlock(p.id, earlyPayout(p)) + '</div>';

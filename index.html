@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <meta name="theme-color" content="#0E1420">
 <title>개미 거래소</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
@@ -29,7 +29,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--down); outline-
 .num { font-variant-numeric: tabular-nums; }
 .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--soft); }
 
-.app { max-width: 440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 170px; display: flex; flex-direction: column; gap: 16px; }
+.app { max-width: 440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 210px; display: flex; flex-direction: column; gap: 16px; }
 .app.detail-mode { padding-bottom: 300px; }
 
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -58,7 +58,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--down); outline-
 .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
 .kv b { font-weight: 600; text-align: right; }
 .note { margin: 2px 0 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
-.fab { position: fixed; z-index: 6; right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px)); bottom: calc(66px + 16px + env(safe-area-inset-bottom, 0px)); width: 66px; height: 66px; border-radius: 50%; border: 0; padding: 4px; background: conic-gradient(var(--live) var(--p, 0deg), var(--surface-2) 0); box-shadow: 0 8px 22px rgba(0,0,0,.45); cursor: default; }
+.fab { position: fixed; z-index: 6; right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px)); bottom: calc(66px + 40px + 12px + env(safe-area-inset-bottom, 0px)); width: 66px; height: 66px; border-radius: 50%; border: 0; padding: 4px; background: conic-gradient(var(--live) var(--p, 0deg), var(--surface-2) 0); box-shadow: 0 8px 22px rgba(0,0,0,.45); cursor: default; }
 .fab-in { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; }
 .fab-t { font-size: 13px; font-weight: 600; color: var(--soft); }
 .fab.ready { background: #1C7D51; cursor: pointer; padding: 0; }
@@ -97,7 +97,7 @@ body.busy button[data-action] { cursor: progress; }
 .switch i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--soft); transition: transform .15s ease, background .15s ease; }
 .switch.on { background: #1C7D51; }
 .switch.on i { transform: translateX(20px); background: #FFFFFF; }
-.bgm-btn { position: fixed; z-index: 6; left: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)); bottom: calc(66px + 16px + env(safe-area-inset-bottom, 0px)); width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+.bgm-btn { position: fixed; z-index: 6; left: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)); bottom: calc(66px + 40px + 12px + env(safe-area-inset-bottom, 0px)); width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
 .bgm-btn .ic-on { display: none; }
 .bgm-btn.on { color: var(--live); border-color: #1C7D51; }
 .bgm-btn.on .ic-on { display: block; }
@@ -142,6 +142,31 @@ body.busy button[data-action] { cursor: progress; }
 .loan-seg { position: absolute; top: 0; right: 0; bottom: 0; display: block; border-radius: 0 999px 999px 0;
   background: var(--up); box-shadow: -2px 0 0 var(--surface); }
 .loan-sw { background: var(--up); flex-shrink: 0; }
+/* 채팅: 하단 메뉴 위 한 줄 바, 누르면 화면 절반으로 펼침 */
+.chat { position: fixed; left: 0; right: 0; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 7; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.chat > * { pointer-events: auto; width: 100%; max-width: 440px; }
+.chat-bar { height: 40px; border: 0; border-top: 1px solid var(--surface-2); background: var(--surface); display: flex; align-items: center; gap: 8px; padding: 0 max(16px, env(safe-area-inset-left, 0px)); color: var(--muted); text-align: left; }
+.chat-last { flex: 1; min-width: 0; font-size: 13px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-last b { margin-right: 6px; }
+.chat-last .sysm { color: var(--muted); }
+.chat-unread { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--up); color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.chat-chev { transition: transform .15s ease; }
+.chat.open { bottom: 0; }
+.chat.open .chat-bar { border-radius: 18px 18px 0 0; border-top-color: var(--line); }
+.chat.open .chat-chev { transform: rotate(180deg); }
+.chat-panel { height: 50vh; height: 50dvh; background: var(--surface); display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.chat-list { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 6px max(16px, env(safe-area-inset-left, 0px)) 10px; display: flex; flex-direction: column; gap: 8px; }
+.cm { font-size: 14px; line-height: 1.45; word-break: break-all; }
+.cm b { margin-right: 6px; font-size: 13px; }
+.cm time { margin-left: 6px; font-size: 11px; color: var(--muted); }
+.cm.me { background: var(--bg); border-radius: 10px; padding: 6px 10px; margin: 0 -10px; }
+.cm.sys { align-self: center; text-align: center; font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 999px; padding: 4px 12px; }
+.chat-empty { margin: auto; color: var(--muted); font-size: 13px; }
+.chat-form { display: flex; gap: 8px; padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); }
+.chat-form input { flex: 1; min-width: 0; height: 44px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; font-size: 16px; padding: 0 12px; outline: none; }
+.chat-form input:focus { border-color: var(--down); }
+.chat-send { width: 44px; height: 44px; border: 0; border-radius: 12px; background: var(--down-btn); color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.chat-dim { position: fixed; inset: 0; z-index: 6; background: rgba(0,0,0,.35); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -310,7 +335,7 @@ body.busy button[data-action] { cursor: progress; }
 .nav-in { max-width: 440px; margin: 0 auto; display: flex; height: 66px; }
 .nav button { flex: 1; border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--muted); font-size: 11px; }
 .nav button.on { color: var(--fg); font-weight: 600; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(156px + env(safe-area-inset-bottom, 0px)); z-index: 20; background: var(--fg); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; max-width: calc(100% - 32px); width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(196px + env(safe-area-inset-bottom, 0px)); z-index: 20; background: var(--fg); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; max-width: calc(100% - 32px); width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
 .detail-mode ~ .toast { bottom: calc(290px + env(safe-area-inset-bottom, 0px)); }
 </style>
 </head>
@@ -352,6 +377,23 @@ body.busy button[data-action] { cursor: progress; }
   <svg class="ic-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="17" cy="16" r="3"></circle></svg>
   <svg class="ic-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="17" cy="16" r="3"></circle><path d="M3 3l18 18"></path></svg>
 </button>
+<div class="chat-dim" id="chat-dim" hidden></div>
+<section class="chat" id="chat" hidden aria-label="채팅">
+  <button class="chat-bar" id="chat-bar" type="button" aria-expanded="false" aria-controls="chat-panel">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12z"></path></svg>
+    <span class="chat-last" id="chat-last">채팅</span>
+    <span class="chat-unread" id="chat-unread" hidden>0</span>
+    <svg class="chat-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>
+  </button>
+  <div class="chat-panel" id="chat-panel" hidden>
+    <div class="chat-list" id="chat-list" aria-live="polite"></div>
+    <form class="chat-form" id="chat-form" autocomplete="off">
+      <label for="chat-input" class="sr">채팅 입력</label>
+      <input id="chat-input" type="text" maxlength="100" enterkeyhint="send" placeholder="메시지 입력 (100자)">
+      <button class="chat-send" type="submit" aria-label="보내기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+    </form>
+  </div>
+</section>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -1254,6 +1296,7 @@ body.busy button[data-action] { cursor: progress; }
     document.getElementById('nav').hidden = v === 'detail';
     document.getElementById('fab').hidden = v === 'detail';
     document.getElementById('bgm-btn').hidden = v === 'detail';
+    chatShow(v !== 'detail');
     var btns = document.querySelectorAll('.nav button');
     for (var i = 0; i < btns.length; i++) { var on = btns[i].dataset.view === v; btns[i].classList.toggle('on', on); if (on) btns[i].setAttribute('aria-current', 'page'); else btns[i].removeAttribute('aria-current'); }
     renderSheet();
@@ -1297,6 +1340,7 @@ body.busy button[data-action] { cursor: progress; }
     else closeSub();
   }
   window.addEventListener('popstate', function () {
+    if (chatOpen) { chatSetOpen(false, true); return; }
     if (booted && isSub(ui.view)) closeSub();
   });
 
@@ -1718,6 +1762,7 @@ body.busy button[data-action] { cursor: progress; }
     document.getElementById('nav').hidden = true;
     document.getElementById('fab').hidden = true;
     document.getElementById('sheet').hidden = true;
+    chatShow(false);
     var n = document.getElementById('auth-nick'); if (n && keepNick) n.value = keepNick;
   }
 
@@ -1736,6 +1781,86 @@ body.busy button[data-action] { cursor: progress; }
       bankStats: { lent: 0, borrowers: 0, players: 0 }, prof: null, work: { tier: 0, last: 0, earned: 0, clicks: 0 }, ranking: [], bots: [] };
   }
 
+  // ---------- 채팅 ----------
+  var chatMsgs = [], chatOpen = false, chatSeen = 0;
+  try { chatSeen = Number(localStorage.getItem('ant-chat-seen')) || 0; } catch (e) {}
+  var chatEl = document.getElementById('chat'), chatBar = document.getElementById('chat-bar'), chatPanel = document.getElementById('chat-panel'),
+      chatList = document.getElementById('chat-list'), chatDim = document.getElementById('chat-dim'), chatInput = document.getElementById('chat-input');
+  function chatName(m) {
+    var lv = lvInfo(m.xp || 0).lv, eq = m.equip;
+    var t = (eq != null && TITLES[eq] && TITLES[eq].lv <= lv) ? TITLES[eq] : titleFor(lv);
+    return '<b style="color:' + t.color + '">' + esc(m.nick || '') + '</b>';
+  }
+  function chatTime(iso) { var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  function chatShow(on) { chatEl.hidden = !on || !booted; if (chatEl.hidden && chatOpen) chatSetOpen(false); }
+  function chatPaintBar() {
+    var m = chatMsgs[chatMsgs.length - 1], last = document.getElementById('chat-last');
+    if (!m) last.innerHTML = '채팅 · 눌러서 대화하기';
+    else if (m.kind === 'sys') last.innerHTML = '<span class="sysm">' + esc(m.text) + '</span>';
+    else last.innerHTML = chatName(m) + esc(m.text);
+    var myId = session && session.user.id;
+    var n = chatOpen ? 0 : chatMsgs.filter(function (x) { return x.seq > chatSeen && x.player_id !== myId; }).length;
+    var u = document.getElementById('chat-unread'); u.hidden = !n; u.textContent = n > 9 ? '9+' : n;
+  }
+  function chatPaintList() {
+    var myId = session && session.user.id;
+    if (!chatMsgs.length) { chatList.innerHTML = '<p class="chat-empty">아직 채팅이 없어요. 첫 마디를 남겨보세요</p>'; return; }
+    chatList.innerHTML = chatMsgs.map(function (m) {
+      if (m.kind === 'sys') return '<div class="cm sys">' + esc(m.text) + '</div>';
+      return '<div class="cm' + (m.player_id === myId ? ' me' : '') + '">' + chatName(m) + esc(m.text) + '<time>' + chatTime(m.created_at) + '</time></div>';
+    }).join('');
+    chatList.scrollTop = chatList.scrollHeight;
+  }
+  function chatMarkSeen() {
+    var m = chatMsgs[chatMsgs.length - 1];
+    if (m && m.seq > chatSeen) { chatSeen = m.seq; try { localStorage.setItem('ant-chat-seen', String(chatSeen)); } catch (e) {} }
+  }
+  function chatAdd(m) {
+    if (chatMsgs.some(function (x) { return x.seq === m.seq; })) return;
+    chatMsgs.push(m); chatMsgs.sort(function (a, b) { return a.seq - b.seq; });
+    if (chatMsgs.length > 50) chatMsgs = chatMsgs.slice(-50);
+    if (chatOpen) { chatPaintList(); chatMarkSeen(); }
+    chatPaintBar();
+  }
+  async function chatLoad() {
+    try {
+      var rows = await q(sb.from('chat_ring').select('seq,player_id,nick,xp,equip,text,kind,created_at').order('seq', { ascending: false }).limit(50));
+      chatMsgs = rows.sort(function (x, y) { return x.seq - y.seq; });
+      if (!chatSeen && chatMsgs.length) { chatSeen = chatMsgs[chatMsgs.length - 1].seq - 1; }
+    } catch (e) {}
+    chatPaintBar(); if (chatOpen) chatPaintList();
+  }
+  function chatSetOpen(on, fromPop) {
+    if (on === chatOpen) return;
+    chatOpen = on;
+    chatEl.classList.toggle('open', on);
+    chatPanel.hidden = !on; chatDim.hidden = !on;
+    chatBar.setAttribute('aria-expanded', String(on));
+    document.getElementById('nav').style.visibility = on ? 'hidden' : '';
+    document.getElementById('fab').style.visibility = on ? 'hidden' : '';
+    document.getElementById('bgm-btn').style.visibility = on ? 'hidden' : '';
+    if (on) {
+      chatPaintList(); chatMarkSeen();
+      history.pushState(Object.assign({}, history.state || {}, { chat: 1 }), '');
+    } else {
+      chatInput.blur();
+      if (!fromPop && history.state && history.state.chat) history.back();
+    }
+    chatPaintBar();
+  }
+  chatBar.addEventListener('click', function () { chatSetOpen(!chatOpen); });
+  chatDim.addEventListener('click', function () { chatSetOpen(false); });
+  document.getElementById('chat-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var t = chatInput.value.replace(/\s+/g, ' ').trim();
+    if (!t) return;
+    if (t.length > 100) { toast('채팅은 100자까지 쓸 수 있어요'); return; }
+    var r = await sb.rpc('send_chat', { p_text: t });
+    if (r.error) { toast(errMsg(r.error)); return; }
+    chatInput.value = '';
+    chatInput.focus();
+  });
+
   var channel = null;
   async function enterGame() {
     state = blankState();
@@ -1747,12 +1872,16 @@ body.busy button[data-action] { cursor: progress; }
       booted = true;
       ui.view = 'market';
       render();
+      chatLoad();
     } catch (e) {
       renderLoading(esc(errMsg(e)) + '<br><br><button class="ghost" data-action="logout" type="button">로그아웃</button>');
       return;
     }
     if (!channel) {
-      channel = sb.channel('market').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game' }, function () { refreshAll(true); }).subscribe();
+      channel = sb.channel('market')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game' }, function (pl) { if (!pl.new || pl.new.tick !== state.tick) refreshAll(true); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_ring' }, function (pl) { if (pl.new) chatAdd(pl.new); })
+        .subscribe();
     }
   }
 
@@ -1845,6 +1974,7 @@ body.busy button[data-action] { cursor: progress; }
     } else {
       booted = false; state = blankState();
       if (channel) { sb.removeChannel(channel); channel = null; }
+      chatMsgs = []; chatSetOpen(false);
       renderAuth();
     }
   });

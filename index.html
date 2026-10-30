@@ -959,7 +959,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="legend"><span><span class="sw" style="background:var(--down)"></span><span class="num">주식 ' + fmt(stockV) + '원</span></span>' +
       '<span><span class="sw" style="background:var(--gold)"></span><span class="num">은행 ' + fmt(bankPrincipal()) + '원</span></span>' +
       '<span><span class="sw" style="background:var(--line)"></span><span class="num">현금 ' + fmt(state.cash) + '원</span></span></div>' +
-      (state.bank.loan ? '<div class="split" style="font-size:13px"><span class="label" style="display:flex;align-items:center;gap:6px"><span class="sw loan-sw"></span>대출 · 가진 돈의 ' + Math.round(state.bank.loan / Math.max(gross, 1) * 100) + '%가 빌린 돈 (총 자산에서 뺐어요)</span><b class="num up">−' + fmt(state.bank.loan) + '원</b></div>' : '') +
+      (state.bank.loan ? '<div class="split" style="font-size:13px"><span class="label" style="display:flex;align-items:center;gap:6px"><span class="sw loan-sw"></span>대출 (가진 돈의 ' + Math.round(state.bank.loan / Math.max(gross, 1) * 100) + '%)</span><b class="num up">−' + fmt(state.bank.loan) + '원</b></div>' : '') +
       '<div class="split divider"><span class="label">평가 손익</span><b class="num ' + cls(pnl) + '">' + signed(pnl) + '원 (' + pct(pnlP) + ')</b></div>' +
       '<div class="split" style="font-size:13px"><span class="label">돈벌기 수입 누적</span><b class="num" style="color:var(--live)">+' + fmt(state.work.earned) + '원</b></div>' +
       '<div class="split" style="font-size:13px"><span class="label">받은 배당금 누적</span><b class="num" style="color:var(--gold)">+' + fmt(state.divTotal || 0) + '원</b></div>' +

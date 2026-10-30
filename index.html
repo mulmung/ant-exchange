@@ -402,7 +402,7 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- bank ----------
   var SAV_RATE = 0.1, EARLY_RATE = 0.1;            // 하루(게임) 기준 %
   var DEP_TERMS = { 3: 0.2, 6: 0.25, 12: 0.3 };    // 정기 예금: 기간(일) → 하루 이율 %
-  var PLAN_TERMS = { 6: 0.35, 12: 0.4 };          // 적금: 기간(일) → 하루 이율 %
+  var PLAN_TERMS = { 6: 0.5, 12: 0.55 };          // 적금: 기간(일) → 하루 이율 %
   var DEP_MIN = 100000, PLAN_MIN = 10000;
   var VAULT0 = 100000000, LOAN_RATE = 0.5, LOAN_LTV = 0.5, LOAN_MIN = 100000;   // 대출: 하루 0.5%, 순자산의 50%까지
 
@@ -1194,7 +1194,7 @@ body.busy button[data-action] { cursor: progress; }
     var cut4 = html.length;
     // 적금
     var pterm = ui.bk.planTerm, prate = PLAN_TERMS[pterm];
-    html += '<section class="card product" aria-label="적금"><div class="split"><h2>적금</h2><span class="tag gold">최대 하루 0.4%</span></div>' +
+    html += '<section class="card product" aria-label="적금"><div class="split"><h2>적금</h2><span class="tag gold">최대 하루 0.55%</span></div>' +
       '<p class="note">매일 같은 금액을 자동으로 넣어요. 가입할 때 첫 회차가 바로 빠지고, 이후 매일 마감 때 현금에서 빠져요. 현금이 모자라면 그날은 납입이 빠져요. 최소 ' + fmt(PLAN_MIN) + '원.</p>' +
       '<div class="terms" role="group" aria-label="적금 기간">' + termChips('plan-term', PLAN_TERMS, pterm) + '</div>' +
       amtField('plan', '매일 넣을 금액', false) +

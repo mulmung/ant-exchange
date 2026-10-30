@@ -8,7 +8,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
 html, body { margin: 0; }
-:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 [hidden] { display: none !important; }
 /* Layout: one phone-width trading app, screens swapped in place, bottom tab bar; deliberate single dark theme */
 :root {
@@ -20,6 +19,9 @@ html, body { margin: 0; }
   color-scheme: dark;
 }
 html, body { height: 100%; }
+/* 페이지 전체가 아니라 body 안에서만 스크롤: 폰 브라우저가 주소창을 숨기며 화면을 상태바 밑까지 늘리지 않게 */
+html { overflow: hidden; }
+body { overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; -webkit-tap-highlight-color: transparent; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 button { font-family: inherit; color: inherit; cursor: pointer; }
@@ -1236,17 +1238,17 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 폰 뒤로가기 지원: 종목 상세·레벨 화면은 기록을 남겨서 뒤로가기로 닫힘 ----------
   function isSub(v) { return v === 'detail' || v === 'profile'; }
   function openSub(v) {
-    if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = window.scrollY; }
+    if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = document.body.scrollTop; }
     if (history.state && history.state.sub) history.replaceState({ sub: v }, '');
     else history.pushState({ sub: v }, '');
-    ui.view = v; render(); window.scrollTo(0, 0);
+    ui.view = v; render(); document.body.scrollTo(0, 0);
   }
   function closeSub() {
     if (!isSub(ui.view)) return;
     ui.view = ui.prevView || 'market';
     render();
     var y = ui.prevScroll || 0;
-    requestAnimationFrame(function () { window.scrollTo(0, y); });
+    requestAnimationFrame(function () { document.body.scrollTo(0, y); });
   }
   function goBack() {
     if (history.state && history.state.sub) history.back();
@@ -1265,7 +1267,7 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'nav') {
       if (t.dataset.view === 'profile') { openSub('profile'); return; }
       if (isSub(ui.view) && history.state && history.state.sub) history.replaceState(null, '');
-      ui.view = t.dataset.view; ui.confirmReset = false; if (ui.view === 'news') ui.newsFilter = k || 'all'; render(); window.scrollTo(0, 0); return;
+      ui.view = t.dataset.view; ui.confirmReset = false; if (ui.view === 'news') ui.newsFilter = k || 'all'; render(); document.body.scrollTo(0, 0); return;
     }
     if (a === 'newsf') { ui.newsFilter = k; render(); return; }
     if (a === 'rank-tab') { ui.rankTab = k; render(); return; }
@@ -1293,7 +1295,7 @@ body.busy button[data-action] { cursor: progress; }
         if (!r) return;
         ui.confirmReset = false; ui.view = 'market';
         toast('새로 시작했어요. 시작 자금 100만 원');
-        after(r); window.scrollTo(0, 0);
+        after(r); document.body.scrollTo(0, 0);
       });
     }
   });

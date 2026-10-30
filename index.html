@@ -119,6 +119,15 @@ body.busy button[data-action] { cursor: progress; }
 .shelf-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 4px; border-radius: 12px; border: 1px solid; text-align: center; }
 .shelf-item b { font-size: 13px; }
 .shelf-item span { font-size: 11px; color: var(--soft); }
+/* 맨 위 제목 줄은 스크롤해도 고정 */
+.stick { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; background: var(--bg);
+  margin-top: -18px; padding-top: 14px; padding-bottom: 10px;
+  margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-shadow: 0 1px 0 var(--surface-2); }
+.dhead.stick { padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); padding-top: 8px; padding-bottom: 6px; }
+.rank-head { display: flex; flex-direction: column; gap: 4px; }
+.rank-head .sub { margin: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -440,7 +449,7 @@ body.busy button[data-action] { cursor: progress; }
       if (fs) return n.code === f;
       return true;
     });
-    var html = '<header class="topbar"><h1 class="brand">뉴스</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span></header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">뉴스</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span></header>' +
       '<div class="chips" role="group" aria-label="뉴스 필터" style="flex-wrap:wrap">' +
       chip('newsf', 'all', '전체', f) + chip('newsf', 'good', '호재', f) + chip('newsf', 'bad', '악재', f) + chip('newsf', 'mine', '보유 종목', f) +
       (fs ? chip('newsf', f, fs.name, f) : '') + '</div>' +
@@ -513,7 +522,7 @@ body.busy button[data-action] { cursor: progress; }
   function viewProfile() {
     var p = state.prof, info = lvInfo(p.xp), t = myTitle(), w = info.next ? info.cur / info.next * 100 : 100;
     var actToday = p.act.d === day() ? p.act.xp : 0;
-    var html = '<header class="dhead"><button class="icon-btn" data-action="back" type="button" aria-label="이전 화면으로 돌아가기">' +
+    var html = '<header class="dhead stick"><button class="icon-btn" data-action="back" type="button" aria-label="이전 화면으로 돌아가기">' +
       '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>' +
       '<div class="dtitle"><b>레벨 · 칭호</b><span>칭호가 높을수록 닉네임 색이 바뀌어요</span></div></header>' +
       '<section class="card" aria-label="내 레벨"><div class="split"><div class="pname"><b>' + nameHtml(p.nick, t) + '</b>' +
@@ -616,7 +625,8 @@ body.busy button[data-action] { cursor: progress; }
 
   function viewShop() {
     var w = state.work, cur = JOBS[w.tier];
-    var html = '<header class="topbar"><h1 class="brand">상점</h1><span class="pill"><span class="num">보유 현금 ' + krw(state.cash) + '</span></span></header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">상점</h1>' + '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span>' + '</header>' +
+      '<p class="sub" style="margin:-8px 0 0">보유 현금 <b class="num" style="color:var(--fg)">' + krw(state.cash) + '</b></p>' +
       '<section class="card" aria-label="돈벌기 버튼"><div class="split"><div style="display:flex;flex-direction:column;gap:4px">' +
       '<span class="label">돈벌기 버튼</span><span class="big num">Lv.' + (w.tier + 1) + '</span>' +
       '<span style="font-size:13px;color:var(--soft)">1분마다 한 번, ' + payRange(cur) + ' 랜덤</span></div>' +
@@ -686,7 +696,7 @@ body.busy button[data-action] { cursor: progress; }
     if (ui.sort === 'mine') list = list.filter(function (s) { return state.hold[s.code]; });
     var n = state.news[0];
     var html = '' +
-      '<header class="topbar"><h1 class="brand">개미 거래소</h1>' +
+      '<header class="topbar stick"><h1 class="brand">개미 거래소</h1>' +
       '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · 다음 시세 <b class="num" id="cd">5</b>초</span></span></header>' +
       '<section class="card" aria-label="내 자산 요약">' + meChip() + '<div class="split" style="align-items:flex-start">' +
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="label">내 총 자산</span>' +
@@ -802,7 +812,7 @@ body.busy button[data-action] { cursor: progress; }
     var s = stock(ui.sel); if (!s) { ui.view = 'market'; return viewMarket(); }
     var c = chg(s), h = state.hold[s.code];
     var sns = state.news.filter(function (n) { return n.code === s.code; });
-    var html = '<header class="dhead"><button class="icon-btn" data-action="back" type="button" aria-label="시세판으로 돌아가기">' +
+    var html = '<header class="dhead stick"><button class="icon-btn" data-action="back" type="button" aria-label="시세판으로 돌아가기">' +
       '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>' +
       logo(s, 36) + '<div class="dtitle" style="margin-left:8px"><b>' + s.name + '</b><span>' + s.sector + ' · 호가 단위 ' + fmt(unit(s.price)) + '원</span></div>' +
       '<span class="pill"><span class="dot"></span><span><b class="num" id="cd">5</b>초</span></span></header>' +
@@ -926,7 +936,7 @@ body.busy button[data-action] { cursor: progress; }
     var total = myTotal(), stockV = holdValue(state.hold), ret = (total / START_CASH - 1) * 100;
     var cost = 0; for (var c in state.hold) cost += state.hold[c].cost;
     var pnl = stockV - cost, pnlP = cost ? pnl / cost * 100 : 0;
-    var html = '<header class="topbar"><h1 class="brand">내 자산</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">5</b>초</span></span></header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">내 자산</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">5</b>초</span></span></header>' +
       '<section class="card" aria-label="자산 요약">' + meChip() + '<div style="display:flex;flex-direction:column;gap:4px"><span class="label">총 자산</span>' +
       '<span class="big num">' + fmt(total) + '원</span><span class="num ' + cls(ret) + '" style="font-size:13px;font-weight:600">전체 수익률 ' + pct(ret) + ' · 시작 자금 ' + fmt(START_CASH) + '원</span>' + mySeasonLine() + '</div>' +
       '<div class="bar" aria-hidden="true"><i style="width:' + (total ? stockV / total * 100 : 0).toFixed(1) + '%"></i><i style="background:var(--gold);width:' + (total ? bankPrincipal() / total * 100 : 0).toFixed(1) + '%"></i></div>' +
@@ -1035,7 +1045,7 @@ body.busy button[data-action] { cursor: progress; }
         '<small class="num ' + cls(x.ret) + '">' + pct(x.ret) + '</small>' + (season ? '<span class="pod-t">보상 ' + ['1,000만', '500만', '300만'][i] + '</span>' : '') + '</div>';
     }
     var sName = state.season ? state.season.name : '이번 시즌';
-    var html = '<header><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' +
+    var html = '<header class="stick rank-head"><div class="topbar"><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' + '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span>' + '</div>' +
       '<p class="sub">' + (season ? '시즌 수익률 기준 · ' + seasonLeft() + ' · 참가 ' + r.length + '명' : '누적 순자산 기준 · 참가 ' + r.length + '명') + '</p></header>' +
       '<div class="seg rank-seg" role="group" aria-label="랭킹 종류"><button class="' + (season ? 'on' : '') + '" data-action="rank-tab" data-key="season" type="button" aria-pressed="' + season + '">시즌</button>' +
       '<button class="' + (!season ? 'on' : '') + '" data-action="rank-tab" data-key="all" type="button" aria-pressed="' + !season + '">전체</button></div>' +
@@ -1098,7 +1108,7 @@ body.busy button[data-action] { cursor: progress; }
 
   function viewBank() {
     var b = state.bank, principal = bankPrincipal();
-    var html = '<header class="topbar"><h1 class="brand">개미 은행</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span></header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">개미 은행</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span></header>' +
       '<section class="card" aria-label="은행 요약"><div style="display:flex;flex-direction:column;gap:4px"><span class="label">내 예금 총액</span>' +
       '<span class="big num">' + fmt(principal) + '원</span>' +
       '<span class="num" style="font-size:13px;font-weight:600;color:var(--gold)">받은 이자 누적 +' + fmt(b.earned) + '원</span></div>' +

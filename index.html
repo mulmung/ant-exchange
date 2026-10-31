@@ -185,11 +185,18 @@ body.busy button[data-action] { cursor: progress; }
 .nick-row input { flex: 1; min-width: 0; height: 44px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; font-size: 15px; padding: 0 12px; outline: none; }
 .nick-row input:focus { border-color: var(--down); }
 .title-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.tbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px; min-height: 58px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; }
+.ttile { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+.ttile.on { border-width: 2px; }
+.ttile.locked { background: transparent; }
+.treward { display: block; font-size: 11px; padding: 7px 12px; border: 0; border-top: 1px solid var(--line); color: var(--muted); text-align: left; background: transparent; }
+.treward.done { color: var(--live); }
+.treward.claim { background: #1C7D51; color: #FFFFFF; font-weight: 700; font-size: 12px; min-height: 36px; }
+.claim-dot { font-size: 11px; font-weight: 700; color: #1A1608; background: var(--gold); border-radius: 999px; padding: 2px 7px; }
+.claim-banner { background: #2A2616; border: 1px solid #6B5A23; color: var(--gold); border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 600; }
+.tbtn { border: 0; background: transparent; border-radius: 0; padding: 12px; min-height: 58px; width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; }
 .tbtn b { font-size: 14px; }
 .tbtn span { font-size: 11px; color: var(--muted); }
-.tbtn.on { border-width: 2px; padding: 11px; }
-.tbtn:disabled { cursor: not-allowed; background: transparent; }
+.tbtn:disabled { cursor: not-allowed; }
 .ach-list { display: flex; flex-direction: column; }
 .ach { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--surface-2); }
 .ach-ic { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); color: var(--muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -536,6 +543,12 @@ body.busy button[data-action] { cursor: progress; }
     { lv: 25, name: '슈퍼개미', color: '#FF9F5A' },
     { lv: 30, name: '전설의 개미', color: '#F2C94C' }
   ];
+  // 칭호 보상금 (서버 claim_title_reward 와 같은 값). 업적(ach)에 't레벨' 키로 수령 여부 기록
+  var TITLE_REWARD = { 5: 500000, 10: 3000000, 15: 15000000, 20: 50000000, 25: 150000000, 30: 500000000 };
+  function unclaimedTitles() {
+    var lv = lvInfo(state.prof.xp).lv, ach = state.prof.ach || {};
+    return TITLES.filter(function (t) { return TITLE_REWARD[t.lv] && t.lv <= lv && !ach['t' + t.lv]; });
+  }
   var ACH = [
     { id: 'buy1', name: '첫 매수', desc: '주식을 처음 샀어요', xp: 10 },
     { id: 'win1', name: '첫 수익 실현', desc: '이익을 보고 팔았어요', xp: 15 },
@@ -574,6 +587,7 @@ body.busy button[data-action] { cursor: progress; }
     return '<button class="me-chip" data-action="nav" data-view="profile" type="button" aria-label="내 레벨과 칭호 보기">' +
       '<b>' + nameHtml(state.prof.nick, t) + '</b><span class="t">Lv.' + info.lv + ' · ' + t.name + '</span>' +
       '<span class="mini-xp" aria-hidden="true"><i style="width:' + w.toFixed(1) + '%;background:' + t.color + '"></i></span>' +
+      (unclaimedTitles().length ? '<span class="claim-dot">보상 ' + unclaimedTitles().length + '</span>' : '') +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--muted)"><path d="M9 18l6-6-6-6"></path></svg></button>';
   }
 
@@ -595,13 +609,19 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="split" style="font-size:13px"><span class="label">로그인 아이디 · ' + esc(p.login || p.nick) + '</span><button class="link" data-action="logout" type="button">로그아웃</button></div></section>';
 
     html += badgeShelf(p.badges || []);
+    var uc = unclaimedTitles();
+    if (uc.length) html += '<div class="claim-banner">받지 않은 칭호 보상이 ' + uc.length + '개 있어요 · 합계 ' + krw(uc.reduce(function (a, t) { return a + TITLE_REWARD[t.lv]; }, 0)) + '</div>';
     html += '<div class="sec-head"><h2>칭호</h2><span class="label">' + TITLES.filter(function (x) { return x.lv <= info.lv; }).length + ' / ' + TITLES.length + ' 획득</span></div>' +
       '<p class="note" style="margin:-8px 0 0">획득한 칭호 중 하나를 골라 달 수 있어요. 닉네임 색은 단 칭호를 따라가요.</p><div class="title-grid">';
     TITLES.forEach(function (x, i) {
       var open = x.lv <= info.lv, on = open && myTitle() === x;
-      html += '<button class="tbtn' + (on ? ' on' : '') + '" data-action="equip" data-key="' + i + '" type="button"' + (open ? '' : ' disabled') + ' aria-pressed="' + on + '"' +
-        (on ? ' style="border-color:' + x.color + '"' : '') + '>' +
-        '<b style="color:' + (open ? x.color : 'var(--muted)') + '">' + x.name + '</b><span>' + (on ? '사용 중' : open ? 'Lv.' + x.lv + ' · 눌러서 달기' : 'Lv.' + x.lv + '에 해금') + '</span></button>';
+      var rw = TITLE_REWARD[x.lv], got = rw && p.ach['t' + x.lv];
+      html += '<div class="ttile' + (on ? ' on' : '') + (open ? '' : ' locked') + '"' + (on ? ' style="border-color:' + x.color + '"' : '') + '>' +
+        '<button class="tbtn" data-action="equip" data-key="' + i + '" type="button"' + (open ? '' : ' disabled') + ' aria-pressed="' + on + '">' +
+        '<b style="color:' + (open ? x.color : 'var(--muted)') + '">' + x.name + '</b><span>' + (on ? '사용 중' : open ? 'Lv.' + x.lv + ' · 눌러서 달기' : 'Lv.' + x.lv + '에 해금') + '</span></button>' +
+        (!rw ? '' : got ? '<span class="treward done">보상 ' + krw(rw) + ' 받음</span>'
+          : open ? '<button class="treward claim" data-action="claim-title" data-key="' + x.lv + '" type="button">보상 ' + krw(rw) + ' 받기</button>'
+          : '<span class="treward">보상 ' + krw(rw) + '</span>') + '</div>';
     });
     html += '</div>';
 
@@ -1365,6 +1385,14 @@ body.busy button[data-action] { cursor: progress; }
       return;
     }
     if (a === 'nick-save') { saveNick(); return; }
+    if (a === 'claim-title') {
+      call('claim_title_reward', { p_lv: Number(k) }).then(function (r) {
+        if (!r) return;
+        toast('칭호 「' + r.data.name + '」 보상 ' + krw(Number(r.data.amt)) + '을 받았어요');
+        after(r);
+      });
+      return;
+    }
     if (a === 'sfx-toggle') { setSfx(!sfxOn); render(); if (sfxOn) keyClick(); toast(sfxOn ? '버튼 효과음을 켰어요' : '버튼 효과음을 껐어요'); return; }
     if (a === 'work-claim' || a === 'work-up') { workAction(a); return; }
     if (/^(bk-add|loan-take|loan-repay|sav-in|sav-out|sav-out-all|dep-term|plan-term|dep-open|plan-open|cancel-ask|cancel-no|cancel-yes)$/.test(a)) { bankAction(a, k, t); return; }
@@ -1550,7 +1578,7 @@ body.busy button[data-action] { cursor: progress; }
     BANK_ACH.forEach(function (x) { if (b.ach[x.id] && !a.ach[x.id]) toast('은행 업적 「' + x.name + '」 달성 · 보상 ' + krw(x.reward) + ' · +' + x.xp + ' XP'); });
     if (lb > la) {
       var ta = titleFor(la), tb = titleFor(lb);
-      toast('레벨 업! Lv.' + lb + (ta !== tb ? ' · 새 칭호 「' + tb.name + '」 획득' : ''));
+      toast('레벨 업! Lv.' + lb + (ta !== tb ? ' · 새 칭호 「' + tb.name + '」 획득' + (TITLE_REWARD[tb.lv] ? ' · 레벨 화면에서 보상 ' + krw(TITLE_REWARD[tb.lv]) + ' 받기' : '') : ''));
     }
   }
 

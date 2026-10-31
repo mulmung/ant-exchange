@@ -1792,10 +1792,10 @@ body.busy button[data-action] { cursor: progress; }
   try { chatSeen = Number(localStorage.getItem('ant-chat-seen')) || 0; } catch (e) {}
   var chatEl = document.getElementById('chat'), chatBar = document.getElementById('chat-bar'), chatPanel = document.getElementById('chat-panel'),
       chatList = document.getElementById('chat-list'), chatDim = document.getElementById('chat-dim'), chatInput = document.getElementById('chat-input');
-  // 채팅 순위 표시: 전체 순위 구간별 색 (1~3위 트로피, 4~10위 별, 그 아래는 숫자만, 1001위부터 없음)
+  // 채팅 순위 표시: 전체 순위 구간별 색, 숫자만 (1~3위 금색, 4~10위 빨강, 1001위부터 없음)
   var RANK_TIERS = [
-    { max: 1, color: '#F2C94C', icon: 'trophy' }, { max: 2, color: '#C9D2E3', icon: 'trophy' }, { max: 3, color: '#E0A57A', icon: 'trophy' },
-    { max: 10, color: '#FF7AA2', icon: 'star' }, { max: 100, color: '#7FB2FF' }, { max: 300, color: '#4FD1C5' },
+    { max: 3, color: '#F2C94C' },
+    { max: 10, color: '#FF5C61' }, { max: 100, color: '#7FB2FF' }, { max: 300, color: '#4FD1C5' },
     { max: 600, color: '#A3C46B' }, { max: 1000, color: '#8A94A8' }
   ];
   function rankChip(pid) {

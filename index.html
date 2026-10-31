@@ -1107,6 +1107,9 @@ body.busy button[data-action] { cursor: progress; }
     return html + '</section>';
   }
 
+  // 시즌 보상 = 기본 + 전체 순자산 상위 3명 평균 × 배수 (서버 season_reward 와 같은 식)
+  var SEASON_BASE = [50000000, 30000000, 15000000], SEASON_MULT = [3, 2, 1];
+  function seasonReward(i) { return SEASON_BASE[i] + Math.max(0, state.top3Avg || 0) * SEASON_MULT[i]; }
   function seasonLeft() {
     if (!state.season) return '';
     var ms = state.season.end - Date.now();
@@ -1123,7 +1126,7 @@ body.busy button[data-action] { cursor: progress; }
       return '<div class="pod' + (i === 0 ? ' first' : '') + (x.me ? ' me' : '') + '">' +
         (i === 0 ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"></path></svg>' : '') +
         '<span class="r r' + (i + 1) + '">' + (i + 1) + '위</span><b>' + nameHtml(x.name, x.title) + '</b><span class="pod-t">Lv.' + x.lv + ' · ' + x.title.name + '</span>' +
-        '<small class="num ' + cls(x.ret) + '">' + pct(x.ret) + '</small>' + (season ? '<span class="pod-t">보상 ' + ['1,000만', '500만', '300만'][i] + '</span>' : '') + '</div>';
+        '<small class="num ' + cls(x.ret) + '">' + pct(x.ret) + '</small>' + (season ? '<span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
     }
     var sName = state.season ? state.season.name : '이번 시즌';
     var html = '<header class="stick rank-head"><div class="topbar"><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' + '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span>' + '</div>' +
@@ -1141,7 +1144,10 @@ body.busy button[data-action] { cursor: progress; }
     });
     html += '</div>';
     if (season) {
-      html += '<p class="note">매달 1일 0시에 시즌이 바뀌어요. 시즌을 시작할 때의 순자산에서 얼마나 불렸는지로 순위를 매기고, 주식·배당·이자·돈벌기·업적 보상이 모두 포함돼요. 1~3위는 현금(1,000만·500만·300만 원), XP(+100·60·40), 기념 뱃지를 받아요.</p>';
+      html += '<p class="note">매달 1일 0시에 시즌이 바뀌어요. 시즌을 시작할 때의 순자산에서 얼마나 불렸는지로 순위를 매기고, 주식·배당·이자·돈벌기·업적 보상이 모두 포함돼요. 1~3위는 현금, XP(+100·60·40), 기념 뱃지를 받아요.</p>' +
+        '<section class="card" style="gap:8px"><div class="kv"><b>시즌 보상</b><span class="label">지금 기준 예상</span></div>' +
+        [0, 1, 2].map(function (i) { return '<div class="kv"><span>' + (i + 1) + '위 · ' + krw(SEASON_BASE[i]) + ' + 상위 3명 평균 × ' + SEASON_MULT[i] + '</span><b class="num" style="color:var(--gold)">약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5) + '</b></div>'; }).join('') +
+        '<p class="note" style="margin:0">상위 3명 평균은 지금 전체 랭킹 1~3위 순자산의 평균(' + krw(Math.round((state.top3Avg || 0) / 1e4) * 1e4) + ')이에요. 시즌이 끝나는 순간의 값으로 확정돼요.</p></section>';
       var past = state.pastSeasons || [];
       if (past.length) {
         html += '<div class="sec-head"><h2>지난 시즌</h2></div><div class="past">';
@@ -1518,6 +1524,7 @@ body.busy button[data-action] { cursor: progress; }
       q(sb.rpc('get_all_ranking')),
       q(sb.rpc('get_season_ranking')),
       q(sb.rpc('get_rank_map')),
+      q(sb.rpc('get_avg_total')),
       q(sb.from('seasons').select('id,name,start_at,end_at,closed,results').order('id', { ascending: false }).limit(7))
     ]);
     var hold = {};
@@ -1559,11 +1566,12 @@ body.busy button[data-action] { cursor: progress; }
     state.seasonRanking = res[5];
     var rm = {}; (res[6] || []).forEach(function (x) { rm[x.player_id] = x.rank; });
     state.rankMap = rm;
+    state.top3Avg = Number(res[7]) || 0;
     if (typeof chatRepaint === 'function') chatRepaint();
-    state.seasons = res[7];
-    var cur = res[7].filter(function (x) { return !x.closed; })[0];
+    state.seasons = res[8];
+    var cur = res[8].filter(function (x) { return !x.closed; })[0];
     state.season = cur ? { id: cur.id, name: cur.name, start: Date.parse(cur.start_at), end: Date.parse(cur.end_at) } : null;
-    state.pastSeasons = res[7].filter(function (x) { return x.closed; });
+    state.pastSeasons = res[8].filter(function (x) { return x.closed; });
     state.prof.badges = p.badges || [];
     if (oldProf && oldProf.loaded) celebrate(oldProf, state.prof);
     state.prof.loaded = true;
@@ -1574,7 +1582,7 @@ body.busy button[data-action] { cursor: progress; }
     var la = lvInfo(a.xp).lv, lb = lvInfo(b.xp).lv;
     ACH.forEach(function (x) { if (b.ach[x.id] && !a.ach[x.id]) toast('업적 달성 「' + x.name + '」 +' + x.xp + ' XP'); });
     var bb = b.badges || [], ba = a.badges || [];
-    if (bb.length > ba.length) bb.slice(ba.length).forEach(function (x) { toast(x.s + ' ' + x.r + '위! 보상 ' + ['', '1,000만', '500만', '300만'][x.r] + '원과 기념 뱃지를 받았어요'); });
+    if (bb.length > ba.length) bb.slice(ba.length).forEach(function (x) { toast(x.s + ' ' + x.r + '위! 보상 ' + (x.a ? krw(Number(x.a)) : '') + '과 기념 뱃지를 받았어요'); });
     BANK_ACH.forEach(function (x) { if (b.ach[x.id] && !a.ach[x.id]) toast('은행 업적 「' + x.name + '」 달성 · 보상 ' + krw(x.reward) + ' · +' + x.xp + ' XP'); });
     if (lb > la) {
       var ta = titleFor(la), tb = titleFor(lb);

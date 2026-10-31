@@ -624,7 +624,8 @@ body.busy button[data-action] { cursor: progress; }
     { id: 'int5', name: '은행의 큰손', need: 10000000, reward: 100000000, xp: 100 }
   ];
   var pendingMsgs = [];
-  function xpNeed(n) { return 20 + 15 * (n - 1); }
+  // 레벨 n → n+1 에 필요한 XP: 1→2 는 20, 이후 5레벨 구간마다 늘어나는 폭이 15, 25, 35 … (서버 xp_need 와 같은 값)
+  function xpNeed(n) { var v = 20; for (var k = 2; k <= n; k++) v += 15 + 10 * Math.floor((k - 1) / 5); return v; }
   function lvInfo(xp) {
     var lv = 1, rest = xp;
     while (lv < MAX_LV && rest >= xpNeed(lv)) { rest -= xpNeed(lv); lv++; }

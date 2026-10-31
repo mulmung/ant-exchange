@@ -179,6 +179,11 @@ body.busy button[data-action] { cursor: progress; }
 .tier-claim { border-radius: 10px; border-top: 0; padding: 8px 12px; }
 .win-star { color: #F2C94C; font-weight: 700; margin-right: 3px; font-size: .95em; }
 .pod-b { justify-content: center; }
+.prof-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tab-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); vertical-align: 2px; }
+.sub-tabs { display: flex; gap: 6px; }
+.sub-tab { border: 1px solid var(--line); background: transparent; color: var(--soft); border-radius: 999px; padding: 7px 14px; font-size: 13px; min-height: 36px; }
+.sub-tab.on { background: var(--surface-2); color: var(--fg); border-color: var(--surface-2); font-weight: 600; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -635,15 +640,14 @@ body.busy button[data-action] { cursor: progress; }
       '<span class="ttag" style="color:' + t.color + '">' + t.name + '</span></div><span class="lvbadge num">Lv.' + info.lv + '</span></div>' +
       '<div class="xpbar" role="progressbar" aria-label="다음 레벨까지 경험치" aria-valuemin="0" aria-valuemax="' + (info.next || 1) + '" aria-valuenow="' + (info.next ? info.cur : 1) + '"><i style="width:' + w.toFixed(1) + '%;background:' + t.color + '"></i></div>' +
       '<div class="kv"><span class="label">' + (info.next ? '다음 레벨까지' : '최고 레벨 달성') + '</span><span class="num">' + (info.next ? fmt(info.cur) + ' / ' + fmt(info.next) + ' XP' : fmt(p.xp) + ' XP') + '</span></div>' +
-      '<div class="kv"><span class="label">오늘 활동 경험치</span><span class="num">' + actToday + ' / ' + ACT_CAP + ' XP</span></div>' +
-      '<div class="kv"><span class="label">오늘 수익 실현 경험치</span><span class="num">' + (p.pxp && p.pxp.d === day() ? p.pxp.xp : 0) + ' XP</span></div>' +
-      '<div class="kv"><span class="label">누적 경험치</span><span class="num">' + fmt(p.xp) + ' XP</span></div>' +
       '<div class="nick-row"><label for="nick-input" class="sr">닉네임</label><input id="nick-input" type="text" maxlength="10" autocomplete="off" enterkeyhint="done" value="' + esc(p.nick) + '" placeholder="닉네임 (최대 10자)">' +
       '<button class="ghost" data-action="nick-save" type="button">닉네임 변경</button></div>' +
       '<div class="split" style="font-size:13px"><span class="label">버튼 효과음 (나무 키보드 소리)</span><button class="switch' + (sfxOn ? ' on' : '') + '" data-action="sfx-toggle" type="button" role="switch" aria-checked="' + sfxOn + '" aria-label="버튼 효과음"><i></i></button></div>' +
       '<div class="split" style="font-size:13px"><span class="label">로그인 아이디 · ' + esc(p.login || p.nick) + '</span><button class="link" data-action="logout" type="button">로그아웃</button></div></section>';
 
+    var cB = html.length;
     html += badgeShelf(p.badges || []);
+    var cT = html.length;
     // 티어
     var uc = unclaimedTitles();
     if (uc.length) html += '<div class="claim-banner">받지 않은 티어 보상이 ' + uc.length + '개 있어요 · 합계 ' + krw(uc.reduce(function (a2, r) { return a2 + r.amt; }, 0)) + '</div>';
@@ -674,6 +678,7 @@ body.busy button[data-action] { cursor: progress; }
     });
     html += '</div>';
 
+    var cA = html.length;
     var doneN = ACH.filter(function (a) { return p.ach[a.id]; }).length;
     html += '<div class="sec-head"><h2>업적</h2><span class="label">' + doneN + ' / ' + ACH.length + '</span></div><div class="ach-list">';
     ACH.forEach(function (a) {
@@ -685,6 +690,7 @@ body.busy button[data-action] { cursor: progress; }
     });
     html += '</div>';
 
+    var cBA = html.length;
     // 은행 업적
     var earned = state.bank.earned || 0, bankDone = BANK_ACH.filter(function (a) { return p.ach[a.id]; }).length;
     html += '<div class="sec-head"><h2>은행 업적</h2><span class="label">' + bankDone + ' / ' + BANK_ACH.length + '</span></div>' +
@@ -702,6 +708,7 @@ body.busy button[data-action] { cursor: progress; }
     });
     html += '</div>';
 
+    var cX = html.length;
     html += '<div class="sec-head"><h2>경험치 얻는 법</h2></div><section class="card" style="gap:8px">' +
       '<div class="kv"><span>수익 실현 (이익 보고 매도)</span><span class="num">번 돈 1만 원당 1 XP</span></div>' +
       '<p class="note" style="margin:-4px 0 4px">팔아서 실제로 남긴 돈(세금 전) 기준이라 한 번에 팔든 나눠 팔든 같아요. 받는 양에 제한은 없고, 손해 보고 팔면 0이고 깎이지는 않아요.</p>' +
@@ -719,6 +726,38 @@ body.busy button[data-action] { cursor: progress; }
       });
       html += '</div>';
     }
+    var cEnd = html.length;
+    // 탭: 뱃지 / 티어 / 업적(업적 · 은행 업적) / 경험치
+    var head = html.slice(0, cB);
+    var todayXp = (actToday || 0) + (p.pxp && p.pxp.d === day() ? p.pxp.xp : 0);
+    var xpTab = '<section class="card" style="gap:8px">' +
+        '<div class="kv"><span class="label">오늘 활동 경험치</span><span class="num">' + actToday + ' / ' + ACT_CAP + ' XP</span></div>' +
+        '<div class="kv"><span class="label">오늘 수익 실현 경험치</span><span class="num">' + (p.pxp && p.pxp.d === day() ? p.pxp.xp : 0) + ' XP</span></div>' +
+        '<div class="kv"><span class="label">누적 경험치</span><span class="num">' + fmt(p.xp) + ' XP</span></div>' +
+        '</section>' + html.slice(cX, cEnd);
+    var bankDoneN = BANK_ACH.filter(function (x) { return p.ach[x.id]; }).length;
+    var achTabs = '<div class="sub-tabs" role="tablist" aria-label="업적 종류">' +
+      '<button class="sub-tab' + (ui.achTab !== 'bank' ? ' on' : '') + '" role="tab" aria-selected="' + (ui.achTab !== 'bank') + '" data-action="ach-tab" data-key="ach" type="button">업적 ' + doneN + '/' + ACH.length + '</button>' +
+      '<button class="sub-tab' + (ui.achTab === 'bank' ? ' on' : '') + '" role="tab" aria-selected="' + (ui.achTab === 'bank') + '" data-action="ach-tab" data-key="bank" type="button">은행 업적 ' + bankDoneN + '/' + BANK_ACH.length + '</button></div>';
+    var secs = {
+      badge: html.slice(cB, cT),
+      tier: html.slice(cT, cA),
+      ach: achTabs + (ui.achTab === 'bank' ? html.slice(cBA, cX) : html.slice(cA, cBA)),
+      xp: xpTab
+    };
+    var tab = secs[ui.profTab] ? ui.profTab : 'tier';
+    var tabs = [
+      ['badge', '뱃지', (p.badges || []).length + '개', false],
+      ['tier', '티어', t.name, unclaimedTitles().length > 0],
+      ['ach', '업적', (doneN + bankDoneN) + '/' + (ACH.length + BANK_ACH.length), false],
+      ['xp', '경험치', '오늘 ' + todayXp, false]
+    ];
+    var nav = '<div class="bank-tabs prof-tabs" role="tablist" aria-label="레벨 화면 메뉴">' + tabs.map(function (x) {
+      var on = x[0] === tab;
+      return '<button class="bank-tab' + (on ? ' on' : '') + '" role="tab" aria-selected="' + on + '" data-action="prof-tab" data-key="' + x[0] + '" type="button">' +
+        '<b>' + x[1] + (x[3] ? ' <i class="tab-dot" aria-label="받을 보상 있음"></i>' : '') + '</b><span class="num">' + x[2] + '</span></button>';
+    }).join('') + '</div>';
+    html = head + nav + secs[tab];
     return html;
   }
 
@@ -1430,13 +1469,15 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'logout') { sb.auth.signOut(); return; }
     if (!booted) return;
     if (a === 'nav') {
-      if (t.dataset.view === 'profile') { openSub('profile'); return; }
+      if (t.dataset.view === 'profile') { if (unclaimedTitles().length) ui.profTab = 'tier'; openSub('profile'); return; }
       if (isSub(ui.view) && history.state && history.state.sub) history.replaceState(null, '');
       ui.view = t.dataset.view; ui.confirmReset = false; if (ui.view === 'news') ui.newsFilter = k || 'all'; render(); document.body.scrollTo(0, 0); return;
     }
     if (a === 'newsf') { ui.newsFilter = k; render(); return; }
     if (a === 'rank-tab') { ui.rankTab = k; render(); return; }
     if (a === 'bank-tab') { ui.bankTab = k; ui.cancel = null; render(); return; }
+    if (a === 'prof-tab') { ui.profTab = k; render(); return; }
+    if (a === 'ach-tab') { ui.achTab = k; render(); return; }
     if (a === 'nick-save') { saveNick(); return; }
     if (a === 'claim-tier') {
       call('claim_tier_reward', { p_key: k }).then(function (r) {

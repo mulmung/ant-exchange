@@ -396,7 +396,7 @@ body.busy button[data-action] { cursor: progress; }
   </div>
 </nav>
 <button class="fab" id="fab" data-action="work-claim" type="button" aria-label="돈벌기"><span class="fab-in"><span class="fab-t num" id="fab-t">돈벌기</span></span></button>
-<audio id="bgm" src="bgm.mp3?v=2" preload="none"></audio>
+<audio id="bgm" preload="none"></audio>
 <button class="bgm-btn" id="bgm-btn" type="button" aria-pressed="false" aria-label="배경 음악 켜기">
   <svg class="ic-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="17" cy="16" r="3"></circle></svg>
   <svg class="ic-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="17" cy="16" r="3"></circle><path d="M3 3l18 18"></path></svg>
@@ -2087,9 +2087,17 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 배경 음악 ----------
   var bgm = document.getElementById('bgm'), bgmBtn = document.getElementById('bgm-btn');
   // 배경 음악 목록: 한 곡이 끝나면 다음 곡, 마지막 곡 다음엔 처음으로
-  var BGM_LIST = ['bgm.mp3?v=2', 'bgm2.mp3?v=1'], bgmIdx = 0;
+  // 무작위 재생, 같은 곡이 연속으로 나오지 않게
+  var BGM_LIST = ['bgm.mp3?v=2', 'bgm2.mp3?v=1', 'bgm3.mp3?v=1'];
+  function bgmPick(except) {
+    var opts = [];
+    for (var i = 0; i < BGM_LIST.length; i++) if (i !== except) opts.push(i);
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+  var bgmIdx = bgmPick(-1);
+  bgm.src = BGM_LIST[bgmIdx];
   bgm.addEventListener('ended', function () {
-    bgmIdx = (bgmIdx + 1) % BGM_LIST.length;
+    bgmIdx = bgmPick(bgmIdx);
     bgm.src = BGM_LIST[bgmIdx];
     bgmPlay();
   });

@@ -388,7 +388,7 @@ body.busy button[data-action] { cursor: progress; }
 .mail-btn { position: relative; width: 34px; height: 34px; border: 0; border-radius: 999px; background: var(--surface); color: var(--soft); display: inline-flex; align-items: center; justify-content: center; }
 .mail-btn b { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--up-btn); color: #FFF; font-size: 11px; line-height: 18px; text-align: center; }
 .mail-hint { font-size: 12px; color: var(--muted); text-align: right; }
-.ml { background: var(--surface); border-radius: 14px; border: 1px solid transparent; overflow: hidden; }
+.ml { background: var(--surface); border-radius: 14px; border: 1px solid transparent; overflow: hidden; cursor: pointer; }
 .ml.new { border-color: #5A2A30; }
 .ml-head { width: 100%; border: 0; background: transparent; text-align: left; padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 4px; }
 .ml-top { display: flex; align-items: center; gap: 8px; }
@@ -1531,7 +1531,7 @@ body.busy button[data-action] { cursor: progress; }
       if (claimable(x)) btns += '<button class="claim" data-action="mail-claim" data-key="' + x.id + '" type="button">받기</button>';
       else if (x.read) btns += '<button data-action="mail-del" data-key="' + x.id + '" type="button">삭제</button>';
       var firstLine = (x.body || '').split('\n')[0];
-      return '<article class="ml' + (x.read ? '' : ' new') + '">' +
+      return '<article class="ml' + (x.read ? '' : ' new') + '" data-action="mail-toggle" data-key="' + x.id + '">' +
         '<button class="ml-head" data-action="mail-toggle" data-key="' + x.id + '" type="button" aria-expanded="' + open + '">' +
         '<span class="ml-top"><i class="dot2' + (x.read ? ' off' : '') + '" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:' + (x.read ? 'var(--line)' : 'var(--up)') + '"></i><b>' + esc(x.title) + '</b><time>' + kstTime(x.at) + ' · ' + leftStr(x.exp) + '</time></span>' +
         (open ? '' : '<span class="ml-prev">' + esc(firstLine || '(내용 없음)') + '</span>') + '</button>' +

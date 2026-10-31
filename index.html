@@ -570,7 +570,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // ---------- level ----------
-  var MAX_LV = 30, ACT_CAP = 30;
+  var MAX_LV = 1000, ACT_CAP = 30;
   // ---------- 티어 (칭호): 주식으로 번 돈 = 매도 손익 − 거래세 + 배당. 각 티어 5 → 1 (서버 claim_tier_reward 와 같은 값) ----------
   var TIERS = [
     { name: '동전주', min: -Infinity, steps: [0, 20000000, 40000000, 60000000, 80000000], color: '#C98A5A' },
@@ -625,11 +625,14 @@ body.busy button[data-action] { cursor: progress; }
   ];
   var pendingMsgs = [];
   // 레벨 n → n+1 에 필요한 XP: 1→2 는 20, 이후 5레벨 구간마다 늘어나는 폭이 15, 25, 35 … (서버 xp_need 와 같은 값)
-  function xpNeed(n) { var v = 20; for (var k = 2; k <= n; k++) v += 15 + 10 * Math.floor((k - 1) / 5); return v; }
+  var XP_NEED = [0, 20], XP_CUM = [0, 0];   // XP_NEED[n] = n → n+1 에 필요한 XP, XP_CUM[n] = Lv.n 까지 누적 XP
+  for (var _n = 2; _n <= MAX_LV; _n++) XP_NEED[_n] = XP_NEED[_n - 1] + 15 + 10 * Math.floor((_n - 1) / 5);
+  for (var _m = 2; _m <= MAX_LV; _m++) XP_CUM[_m] = XP_CUM[_m - 1] + XP_NEED[_m - 1];
+  function xpNeed(n) { return XP_NEED[n]; }
   function lvInfo(xp) {
-    var lv = 1, rest = xp;
-    while (lv < MAX_LV && rest >= xpNeed(lv)) { rest -= xpNeed(lv); lv++; }
-    return { lv: lv, cur: rest, next: lv < MAX_LV ? xpNeed(lv) : 0 };
+    var lo = 1, hi = MAX_LV;   // 누적 XP 표에서 이분 탐색
+    while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (XP_CUM[mid] <= xp) lo = mid; else hi = mid - 1; }
+    return { lv: lo, cur: xp - XP_CUM[lo], next: lo < MAX_LV ? XP_NEED[lo] : 0 };
   }
   function myLv() { return lvInfo(state.prof.xp).lv; }
   function myTitle() { return tierOf(state.prof.pnl); }

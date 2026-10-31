@@ -1277,7 +1277,7 @@ body.busy button[data-action] { cursor: progress; }
     return html + '</section>';
   }
 
-  // 시즌 보상 = 기본 + 전체 순자산 상위 3명 평균 × 배수 (서버 season_reward 와 같은 식)
+  // 시즌 보상 = 기본 + 이번 시즌 1~3위 시즌 점수 평균(마이너스는 0) × 배수 (서버 season_reward · season_score_avg 와 같은 식)
   var SEASON_BASE = [50000000, 30000000, 15000000], SEASON_MULT = [0.3, 0.2, 0.1];
   function seasonReward(i) { return SEASON_BASE[i] + Math.max(0, state.top3Avg || 0) * SEASON_MULT[i]; }
   function seasonLeft() {
@@ -1317,8 +1317,8 @@ body.busy button[data-action] { cursor: progress; }
     if (season) {
       html += '<p class="note">매달 1일 0시에 시즌이 바뀌어요. 시즌 동안 주식과 은행으로 번 돈(매도 손익, 보유 주식 평가 손익, 배당, 은행 이자 − 거래세 − 낸 대출 이자)으로 순위를 매겨요. 돈벌기와 각종 보상은 들어가지 않아요. 1~3위는 현금, XP(+100·60·40), 기념 뱃지를 받고, 1위는 우승 별 ★을 받아요.</p>' +
         '<section class="card" style="gap:8px"><div class="kv"><b>시즌 보상</b><span class="label">지금 기준 예상</span></div>' +
-        [0, 1, 2].map(function (i) { return '<div class="kv"><span>' + (i + 1) + '위 · ' + krw(SEASON_BASE[i]) + ' + 상위 3명 평균 × ' + SEASON_MULT[i] + '</span><b class="num" style="color:var(--gold)">약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5) + '</b></div>'; }).join('') +
-        '<p class="note" style="margin:0">상위 3명 평균은 지금 전체 랭킹 1~3위 순자산의 평균(' + krw(Math.round((state.top3Avg || 0) / 1e4) * 1e4) + ')이에요. 시즌이 끝나는 순간의 값으로 확정돼요.</p></section>';
+        [0, 1, 2].map(function (i) { return '<div class="kv"><span>' + (i + 1) + '위 · ' + krw(SEASON_BASE[i]) + ' + 1~3위 점수 평균 × ' + SEASON_MULT[i] + '</span><b class="num" style="color:var(--gold)">약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5) + '</b></div>'; }).join('') +
+        '<p class="note" style="margin:0">1~3위 점수 평균은 지금 시즌 랭킹 1~3위가 이번 시즌에 번 돈(시즌 점수)의 평균(' + krw(Math.round((state.top3Avg || 0) / 1e4) * 1e4) + ')이에요. 마이너스 점수는 0으로 계산하고, 시즌이 끝나는 순간의 값으로 확정돼요.</p></section>';
       var past = state.pastSeasons || [];
       if (past.length) {
         html += '<div class="sec-head"><h2>지난 시즌</h2></div><div class="past">';
@@ -2420,21 +2420,39 @@ body.busy button[data-action] { cursor: progress; }
 
   // ---------- 배경 음악 ----------
   var bgm = document.getElementById('bgm'), bgmBtn = document.getElementById('bgm-btn');
-  // 배경 음악 목록: 한 곡이 끝나면 다음 곡, 마지막 곡 다음엔 처음으로
-  // 무작위 재생, 같은 곡이 연속으로 나오지 않게
+  // 배경 음악: 무작위 순서로 계속 재생 (같은 곡이 연달아 나오지 않음)
+  // 멈춤 대비: 파일 오류·다운로드 멈춤이면 다음 곡으로 넘어가고, 알림음·전화 등으로 멈추면 저절로 다시 재생
   var BGM_LIST = ['bgm.mp3?v=2', 'bgm2.mp3?v=1', 'bgm3.mp3?v=1', 'bgm4.mp3?v=1', 'bgm5.mp3?v=1', 'bgm6.mp3?v=1'];
-  function bgmPick(except) {
-    var opts = [];
-    for (var i = 0; i < BGM_LIST.length; i++) if (i !== except) opts.push(i);
-    return opts[Math.floor(Math.random() * opts.length)];
+  var BGM_NAMES = ['Main Melody 1', 'Main Melody 2', 'Tiptoe Jazz', 'Wobbly Waddle', 'Main Melody 3', 'Main Melody 4'];
+  var bgmBag = [], bgmIdx = -1, bgmBlocked = false, bgmFails = 0, bgmLastT = -1, bgmLastMove = Date.now(), bgmSkipTimer = null;
+  try { var _l = parseInt(localStorage.getItem('ant-bgm-last'), 10); if (_l >= 0 && _l < BGM_LIST.length) bgmIdx = _l; } catch (e) {}
+  // 모든 곡을 한 번씩 섞어서 돌고, 새로 섞을 때 첫 곡이 방금 곡과 같으면 자리를 바꿈
+  function bgmNextIdx() {
+    if (!bgmBag.length) {
+      var a = BGM_LIST.map(function (_, i) { return i; });
+      for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; }
+      if (a.length > 1 && a[0] === bgmIdx) { var x = a[0]; a[0] = a[a.length - 1]; a[a.length - 1] = x; }
+      bgmBag = a;
+    }
+    return bgmBag.shift();
   }
-  var bgmIdx = bgmPick(-1);
-  bgm.src = BGM_LIST[bgmIdx];
-  bgm.addEventListener('ended', function () {
-    bgmIdx = bgmPick(bgmIdx);
-    bgm.src = BGM_LIST[bgmIdx];
-    bgmPlay();
-  });
+  function bgmLoad(i) {
+    bgmIdx = i; bgm.src = BGM_LIST[i]; bgmLastT = -1; bgmLastMove = Date.now();
+    try { localStorage.setItem('ant-bgm-last', String(i)); } catch (e) {}
+    if ('mediaSession' in navigator) try { navigator.mediaSession.metadata = new MediaMetadata({ title: BGM_NAMES[i], artist: '개미 거래소' }); } catch (e) {}
+  }
+  function bgmNext() { clearTimeout(bgmSkipTimer); bgmSkipTimer = null; bgmLoad(bgmNextIdx()); bgmPlay(); }
+  // 곡을 못 불러오면 잠깐 뒤 다음 곡. 모든 곡이 연달아 실패하면 30초 쉬었다가 다시 시도
+  function bgmFail() {
+    if (bgmSkipTimer) return;
+    bgmFails++;
+    bgmSkipTimer = setTimeout(function () { bgmSkipTimer = null; if (bgmOn) bgmNext(); }, bgmFails >= BGM_LIST.length ? 30000 : 800);
+    if (bgmFails >= BGM_LIST.length) bgmFails = 0;
+  }
+  bgmLoad(bgmNextIdx());
+  bgm.addEventListener('ended', bgmNext);
+  bgm.addEventListener('error', function () { if (bgmOn) bgmFail(); });
+  bgm.addEventListener('playing', function () { bgmBlocked = false; bgmFails = 0; bgmLastMove = Date.now(); });
   var bgmOn = false;
   try { bgmOn = localStorage.getItem('ant-bgm') === '1'; } catch (e) {}
   bgm.volume = 0.35;
@@ -2447,22 +2465,40 @@ body.busy button[data-action] { cursor: progress; }
     if (!bgmOn || document.hidden) return;
     if (bgm.preload !== 'auto') bgm.preload = 'auto';
     var pr = bgm.play();
-    if (pr && pr.catch) pr.catch(function () {});
+    if (pr && pr.then) pr.then(function () { bgmBlocked = false; }, function (e) {
+      if (e && e.name === 'NotAllowedError') bgmBlocked = true;   // 브라우저가 터치를 기다리는 중
+      else if (!e || e.name !== 'AbortError') bgmFail();          // 파일 문제면 다음 곡
+    });
   }
-  bgmBtn.addEventListener('click', function (e) {
-    e.stopPropagation();
-    bgmOn = !bgmOn;
+  function bgmSet(on) {
+    bgmOn = on;
     try { localStorage.setItem('ant-bgm', bgmOn ? '1' : '0'); } catch (err) {}
     bgmPaint();
-    if (bgmOn) bgmPlay(); else bgm.pause();
-  });
-  // 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 켜둔 상태면 첫 터치에 재생
-  // 휴대폰은 손가락이 떨어질 때(터치 끝·클릭)만 소리 재생을 허락해서, 그때 시작
-  function bgmKick() { if (bgmOn && bgm.paused) bgmPlay(); }
+    if (bgmOn) bgmPlay(); else { clearTimeout(bgmSkipTimer); bgmSkipTimer = null; bgm.pause(); }
+  }
+  bgmBtn.addEventListener('click', function (e) { e.stopPropagation(); bgmSet(!bgmOn); });
+  // 휴대폰 알림창·잠금화면의 재생/일시정지/다음 곡 버튼과 연결
+  if ('mediaSession' in navigator) try {
+    navigator.mediaSession.setActionHandler('play', function () { bgmSet(true); });
+    navigator.mediaSession.setActionHandler('pause', function () { bgmSet(false); });
+    navigator.mediaSession.setActionHandler('nexttrack', function () { if (bgmOn) bgmNext(); });
+  } catch (e) {}
+  // 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 켜둔 상태면 터치할 때 재생 (음악 버튼 자체는 제외)
+  function bgmKick(e) {
+    if (!bgmOn || (e && e.target && e.target.closest && e.target.closest('#bgm-btn'))) return;
+    if (bgm.paused || bgmBlocked) bgmPlay();
+  }
   ['touchend', 'click', 'keydown'].forEach(function (ev) { document.addEventListener(ev, bgmKick, true); });
+  // 3초마다 확인: 켜져 있는데 멈췄으면 다시 재생, 12초 넘게 진행이 없으면(다운로드 멈춤) 다음 곡
+  setInterval(function () {
+    if (!bgmOn || document.hidden) return;
+    if (bgm.paused) { if (!bgmBlocked && !bgmSkipTimer) bgmPlay(); bgmLastMove = Date.now(); return; }
+    if (bgm.currentTime !== bgmLastT) { bgmLastT = bgm.currentTime; bgmLastMove = Date.now(); return; }
+    if (Date.now() - bgmLastMove > 12000) bgmNext();
+  }, 3000);
   // 컴퓨터 브라우저처럼 바로 재생을 허락하는 경우엔 들어오자마자 시작
   if (bgmOn) setTimeout(bgmPlay, 300);
-  document.addEventListener('visibilitychange', function () { if (document.hidden) bgm.pause(); else bgmPlay(); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) bgm.pause(); else { bgmLastMove = Date.now(); bgmPlay(); } });
   bgmPaint();
 
   ui.bk = { sav: 0, dep: 0, depTerm: '6', plan: 0, planTerm: '6', loan: 0, repay: 0 };

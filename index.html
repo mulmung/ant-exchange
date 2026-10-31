@@ -383,6 +383,41 @@ body.busy button[data-action] { cursor: progress; }
 .adm-tbl td { padding: 7px 4px; border-bottom: 1px solid var(--surface-2); }
 .adm-tbl .r { text-align: right; }
 .hot { color: var(--up); font-weight: 700; }
+
+/* 공지함 */
+.mail-btn { position: relative; width: 34px; height: 34px; border: 0; border-radius: 999px; background: var(--surface); color: var(--soft); display: inline-flex; align-items: center; justify-content: center; }
+.mail-btn b { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--up-btn); color: #FFF; font-size: 11px; line-height: 18px; text-align: center; }
+.mail-hint { font-size: 12px; color: var(--muted); text-align: right; }
+.ml { background: var(--surface); border-radius: 14px; border: 1px solid transparent; overflow: hidden; }
+.ml.new { border-color: #5A2A30; }
+.ml-head { width: 100%; border: 0; background: transparent; text-align: left; padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 4px; }
+.ml-top { display: flex; align-items: center; gap: 8px; }
+.ml-top b { flex: 1; font-size: 15px; }
+.ml-top time { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.ml-prev { font-size: 13px; color: var(--soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-body { padding: 0 14px 4px; font-size: 14px; color: var(--fg); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.ml-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px 14px; font-size: 13px; }
+.ml-foot .rw { color: var(--gold); font-weight: 700; }
+.ml-foot .rw.off { color: var(--muted); font-weight: 500; }
+.ml-foot .bt { display: flex; gap: 6px; }
+.ml-foot button { min-height: 34px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--surface-2); font-size: 12px; font-weight: 700; }
+.ml-foot button.claim { background: var(--gold); color: #1A1606; }
+.mail-banner { width: 100%; border: 1px solid #6B5A23; background: #2A2616; color: var(--gold); border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; text-align: left; }
+.mail-banner span { flex: 1; line-height: 1.45; }
+.mail-banner i { font-style: normal; font-size: 12px; text-decoration: underline; white-space: nowrap; }
+.nt-form { display: flex; flex-direction: column; gap: 10px; }
+.nt-form label { font-size: 12px; color: var(--muted); }
+.nt-form input[type=text], .nt-form textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 14px; }
+.nt-form textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+.nt-form input:disabled { opacity: .5; }
+.nt-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--soft); }
+.nt-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.nt-btns button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--surface-2); font-size: 13px; font-weight: 700; }
+.nt-btns button.go { background: var(--down-btn); color: #FFF; }
+.nt-btns button.warn { background: var(--up-btn); color: #FFF; }
+.nt-confirm { border: 1px solid #5A2A30; background: var(--up-tint); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.adm-seg button.on { background: var(--surface-2); color: var(--fg); }
+.sent-meta { font-size: 12px; color: var(--muted); line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -889,7 +924,7 @@ body.busy button[data-action] { cursor: progress; }
     var n = state.news[0];
     var html = '' +
       '<header class="topbar stick"><h1 class="brand">개미 거래소</h1>' +
-      '' + dayPill(60) + '</header>' +
+      '' + dayPill(60) + '</header>' + mailBanner() +
       '<section class="card" aria-label="내 자산 요약">' + meChip() + '<div class="split" style="align-items:flex-start">' +
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="label">내 총 자산</span>' +
       '<span class="big num">' + fmt(total) + '원</span>' +
@@ -1109,7 +1144,20 @@ body.busy button[data-action] { cursor: progress; }
     ui.qty = digits ? parseInt(digits, 10) : 0;
     updateSheet();
   });
+  document.addEventListener('input', function (e) {
+    var id = e.target.id; if (!/^nt-/.test(id) || !ui.compose) return;
+    if (id === 'nt-title') ui.compose.title = e.target.value;
+    if (id === 'nt-body') ui.compose.body = e.target.value;
+    if (id === 'nt-chat') ui.compose.chat = e.target.checked;
+    if (id === 'nt-reward') {
+      var dg = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '').slice(0, 10);
+      if (e.target.value !== dg) e.target.value = dg;
+      ui.compose.reward = Math.min(dg ? parseInt(dg, 10) : 0, 1000000000);
+      var pv = document.getElementById('nt-reward-pv'); if (pv) pv.textContent = ui.compose.reward ? krw(ui.compose.reward) : '';
+    }
+  });
   document.addEventListener('change', function (e) {
+    if (e.target.id === 'nt-chat' && ui.compose) ui.compose.chat = e.target.checked;
     if (e.target.id !== 'qty-input') return;
     if (ui.qty < 1) { ui.qty = 1; e.target.value = '1'; updateSheet(); }
   });
@@ -1434,11 +1482,86 @@ body.busy button[data-action] { cursor: progress; }
 
   // ---------- 관리자 알림 (매크로 의심) : 서버가 관리자인지 확인한 계정에만 보임 ----------
   var BELL_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>';
+  var MAIL_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg>';
+  function badge(n) { return n ? '<b class="num">' + (n > 99 ? '99+' : n) + '</b>' : ''; }
+  // 헤더 오른쪽: [관리자 알림(관리자만)] [공지함] [Day] — 공지함 위치는 모두 같음
   function dayPill(cd) {
     var pill = '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">' + cd + '</b>초</span></span>';
-    if (!state.isAdmin) return pill;
-    var n = state.adminUnread || 0;
-    return '<span class="head-r"><button class="bell" data-action="admin-open" type="button" aria-label="관리자 알림' + (n ? ' · 안 읽음 ' + n + '개' : '') + '">' + BELL_SVG + (n ? '<b class="num">' + (n > 99 ? '99+' : n) + '</b>' : '') + '</button>' + pill + '</span>';
+    var m = mailCount();
+    var mail = '<button class="mail-btn" data-action="mail-open" type="button" aria-label="공지함' + (m ? ' · 확인할 공지 ' + m + '개' : '') + '">' + MAIL_SVG + badge(m) + '</button>';
+    var bell = '';
+    if (state.isAdmin) {
+      var n = state.adminUnread || 0;
+      bell = '<button class="bell" data-action="admin-open" type="button" aria-label="관리자 알림' + (n ? ' · 안 읽음 ' + n + '개' : '') + '">' + BELL_SVG + badge(n) + '</button>';
+    }
+    return '<span class="head-r">' + bell + mail + pill + '</span>';
+  }
+
+  // ---------- 공지함 ----------
+  function claimable(x) { return x.reward > 0 && x.eligible && !x.claimed; }
+  function mailCount() { return (state.notices || []).filter(function (x) { return !x.read || claimable(x); }).length; }
+  function leftStr(exp) {
+    var ms = Date.parse(exp) - Date.now();
+    if (ms <= 0) return '곧 사라짐';
+    var h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+    return h ? h + '시간 남음' : Math.max(1, m) + '분 남음';
+  }
+  function mailBanner() {
+    var c = (state.notices || []).filter(claimable);
+    if (!c.length) return '';
+    var sum = c.reduce(function (a, x) { return a + Number(x.reward); }, 0);
+    var soon = c.reduce(function (a, x) { return Date.parse(x.exp) < Date.parse(a.exp) ? x : a; });
+    return '<button class="mail-banner" data-action="mail-open" type="button"><span>🎁 받지 않은 공지 보상이 ' + c.length + '개 있어요 · ' + krw(sum) + ' · ' + leftStr(soon.exp) + '</span><i>공지함 열기</i></button>';
+  }
+  function viewMail() {
+    var html = '<header class="dhead stick"><button class="icon-btn" data-action="back" type="button" aria-label="이전 화면으로 돌아가기">' +
+      '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>' +
+      '<div class="dtitle"><b>공지함</b><span>공지는 보낸 뒤 24시간이 지나면 자동으로 사라져요</span></div></header>';
+    var list = state.notices || [];
+    if (!list.length) return html + '<div class="empty">지금은 공지가 없어요</div>';
+    html += '<div class="al-list">' + list.map(function (x) {
+      var open = ui.mailOpen === x.id;
+      var rw = '';
+      if (Number(x.reward) > 0) {
+        if (!x.eligible) rw = '<span class="rw off">🎁 ' + krw(Number(x.reward)) + ' · 가입 전 공지</span>';
+        else if (x.claimed) rw = '<span class="rw off">🎁 ' + krw(Number(x.reward)) + ' · 받음 ✓</span>';
+        else rw = '<span class="rw">🎁 ' + krw(Number(x.reward)) + '</span>';
+      } else rw = '<span class="rw off">보상 없음</span>';
+      var btns = '';
+      if (claimable(x)) btns += '<button class="claim" data-action="mail-claim" data-key="' + x.id + '" type="button">받기</button>';
+      else if (x.read) btns += '<button data-action="mail-del" data-key="' + x.id + '" type="button">삭제</button>';
+      var firstLine = (x.body || '').split('\n')[0];
+      return '<article class="ml' + (x.read ? '' : ' new') + '">' +
+        '<button class="ml-head" data-action="mail-toggle" data-key="' + x.id + '" type="button" aria-expanded="' + open + '">' +
+        '<span class="ml-top"><i class="dot2' + (x.read ? ' off' : '') + '" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:' + (x.read ? 'var(--line)' : 'var(--up)') + '"></i><b>' + esc(x.title) + '</b><time>' + kstTime(x.at) + ' · ' + leftStr(x.exp) + '</time></span>' +
+        (open ? '' : '<span class="ml-prev">' + esc(firstLine || '(내용 없음)') + '</span>') + '</button>' +
+        (open ? '<div class="ml-body">' + esc(x.body || '') + '</div>' : '') +
+        '<div class="ml-foot">' + rw + '<span class="bt">' + btns + '</span></div></article>';
+    }).join('') + '</div>';
+    return html;
+  }
+  async function loadNotices() {
+    try { state.notices = await q(sb.rpc('my_notices')); } catch (e) {}
+  }
+  async function mailAction(a, k) {
+    var id = Number(k);
+    if (a === 'mail-open') { ui.mailOpen = null; openSub('mail'); await loadNotices(); render(); return; }
+    if (a === 'mail-toggle') {
+      ui.mailOpen = ui.mailOpen === id ? null : id;
+      var x = (state.notices || []).filter(function (n) { return n.id === id; })[0];
+      if (x && !x.read) { x.read = true; render(); try { await q(sb.rpc('notice_read', { p_id: id })); } catch (e) {} await loadNotices(); }
+      render(); return;
+    }
+    if (a === 'mail-claim') {
+      var r = await call('notice_claim', { p_id: id }); if (!r) { await loadNotices(); render(); return; }
+      toast('공지 보상 ' + krw(Number(r.data.amt)) + '을 받았어요');
+      await loadNotices(); after(r); return;
+    }
+    if (a === 'mail-del') {
+      var r2 = await call('notice_delete', { p_id: id }); if (!r2) return;
+      if (ui.mailOpen === id) ui.mailOpen = null;
+      await loadNotices(); render(); return;
+    }
   }
   function kstTime(iso) {
     var d = new Date(iso), now = new Date();
@@ -1453,7 +1576,8 @@ body.busy button[data-action] { cursor: progress; }
     if (!state.isAdmin) return;
     try {
       if (ui.adminSel) state.adminDetail = await q(sb.rpc('admin_detail', { p_pid: ui.adminSel }));
-      else state.adminList = await q(sb.rpc('admin_alerts_list'));
+      else if (ui.adminTab === 'sent') state.adminNotices = await q(sb.rpc('admin_notices'));
+      else if (ui.adminTab !== 'write') state.adminList = await q(sb.rpc('admin_alerts_list'));
     } catch (e) { toast(errMsg(e)); }
   }
   function viewAdmin() {
@@ -1486,8 +1610,15 @@ body.busy button[data-action] { cursor: progress; }
         }).join('') + '</tbody></table><span class="label" style="font-size:12px">반응 = 시세가 바뀐 뒤 몇 초 만에 거래했는지 · ⚠ = 게임 화면 없이 보낸 요청</span></section>';
       return html;
     }
+    var tab = ui.adminTab || 'alerts';
+    var html2 = head + '<div class="dtitle"><b>관리자</b><span>' + (tab === 'alerts' ? '매크로 의심 정황 · 10분마다 자동 검사 · 최근 7일' : tab === 'write' ? '모든 유저 공지함으로 보내요 · 24시간 뒤 자동으로 사라져요' : '최근 7일 동안 보낸 공지') + '</span></div></header>' +
+      '<div class="seg adm-seg" role="group" aria-label="관리자 메뉴">' +
+      [['alerts', '알림'], ['write', ui.compose && ui.compose.edit ? '공지 수정' : '공지 쓰기'], ['sent', '보낸 공지']].map(function (b) {
+        return '<button class="' + (tab === b[0] ? 'on' : '') + '" data-action="admin-tab" data-key="' + b[0] + '" type="button" aria-pressed="' + (tab === b[0]) + '">' + b[1] + '</button>';
+      }).join('') + '</div>';
+    if (tab === 'write') return html2 + composeHtml();
+    if (tab === 'sent') return html2 + sentHtml();
     var list = state.adminList || [], unread = list.filter(function (a) { return !a.read; }).length;
-    var html2 = head + '<div class="dtitle"><b>관리자 알림</b><span>매크로 의심 정황 · 10분마다 자동 검사 · 최근 7일</span></div></header>';
     if (unread) html2 += '<div style="display:flex;justify-content:flex-end"><button class="link" data-action="admin-read-all" type="button">모두 읽음</button></div>';
     if (!state.adminList) return html2 + '<div class="empty">불러오는 중이에요</div>';
     if (!list.length) return html2 + '<div class="empty">아직 의심 정황이 없어요</div>';
@@ -1500,7 +1631,83 @@ body.busy button[data-action] { cursor: progress; }
     }).join('') + '</div>';
     return html2;
   }
+  function composeHtml() {
+    var c = ui.compose, editing = !!c.edit;
+    var h = '<section class="card nt-form" aria-label="공지 쓰기">' +
+      '<label for="nt-title">제목 (40자까지)</label><input id="nt-title" type="text" maxlength="40" autocomplete="off" value="' + esc(c.title) + '" placeholder="예: 11월 시즌 시작!">' +
+      '<label for="nt-body">내용 (1,000자까지 · 줄바꿈 그대로 보여요)</label><textarea id="nt-body" maxlength="1000" placeholder="유저에게 전할 내용을 써주세요">' + esc(c.body) + '</textarea>' +
+      '<label for="nt-reward">보상 (원 · 비우면 보상 없음 · 최대 10억)' + (editing ? ' · 보낸 뒤에는 바꿀 수 없어요' : '') + '</label>' +
+      '<input id="nt-reward" type="text" inputmode="numeric" autocomplete="off" value="' + (c.reward ? c.reward : '') + '" placeholder="0"' + (editing ? ' disabled' : '') + '>' +
+      '<span class="label" id="nt-reward-pv" style="font-size:12px">' + (c.reward ? krw(c.reward) : '') + '</span>' +
+      (editing ? '' : '<label class="nt-row"><input id="nt-chat" type="checkbox"' + (c.chat ? ' checked' : '') + '> 전체 채팅에도 "📢 새 공지" 알리기</label>');
+    if (c.confirm) {
+      h += '<div class="nt-confirm"><b>정말 모든 유저에게 ' + krw(c.reward) + '씩 보상을 보낼까요?</b><span>지금 가입한 ' + (state.ranking ? state.ranking.length : '') + '명이 받을 수 있어요. 보낸 뒤에는 금액을 바꿀 수 없어요.</span>' +
+        '<div class="nt-btns"><button data-action="admin-send-no" type="button">취소</button><button class="warn" data-action="admin-send-yes" type="button">보내기</button></div></div>';
+    } else {
+      h += '<div class="nt-btns">' + (editing ? '<button data-action="admin-edit-cancel" type="button">수정 취소</button>' : '') +
+        '<button data-action="admin-preview" type="button">' + (c.preview ? '미리보기 닫기' : '미리보기') + '</button>' +
+        '<button class="go" data-action="admin-send" type="button">' + (editing ? '수정 저장' : '보내기') + '</button></div>';
+    }
+    h += '</section>';
+    if (c.preview) {
+      var r = Number(c.reward) || 0;
+      h += '<div class="sec-head"><h2>유저 화면 미리보기</h2></div><article class="ml new"><div class="ml-head"><span class="ml-top"><b>' + esc(c.title || '(제목 없음)') + '</b><time>지금 · 24시간 남음</time></span></div>' +
+        '<div class="ml-body">' + esc(c.body || '') + '</div><div class="ml-foot">' + (r ? '<span class="rw">🎁 ' + krw(r) + '</span><span class="bt"><button class="claim" type="button" disabled>받기</button></span>' : '<span class="rw off">보상 없음</span>') + '</div></article>';
+    }
+    return h;
+  }
+  function sentHtml() {
+    var list = state.adminNotices;
+    if (!list) return '<div class="empty">불러오는 중이에요</div>';
+    if (!list.length) return '<div class="empty">최근 7일 동안 보낸 공지가 없어요</div>';
+    return '<div class="al-list">' + list.map(function (n) {
+      var live = !n.removed && Date.parse(n.exp) > Date.now();
+      var st = n.removed ? '내림' : live ? leftStr(n.exp) : '사라짐 (24시간 지남)';
+      var btns = '';
+      if (live) {
+        if (ui.removeAsk === n.id) btns = '<span class="label" style="font-size:12px">모든 유저 공지함에서 지울까요?</span><button data-action="admin-nremove-no" type="button">취소</button><button data-action="admin-nremove-yes" data-key="' + n.id + '" type="button" style="background:var(--up-btn);color:#fff">내리기</button>';
+        else btns = '<button data-action="admin-nedit" data-key="' + n.id + '" type="button">수정</button><button data-action="admin-nremove" data-key="' + n.id + '" type="button">내리기</button>';
+      }
+      return '<article class="al"><div class="al-top"><i class="dot2' + (live ? '' : ' off') + '" style="' + (live ? 'background:var(--live)' : '') + '"></i><time>' + kstTime(n.at) + '</time><b>' + esc(n.title) + '</b>' +
+        '<span class="tag ' + (live ? 'up' : 'none') + '" style="' + (live ? 'background:#173A2A;color:var(--live)' : '') + '">' + st + '</span></div>' +
+        '<div class="al-detail" style="white-space:pre-wrap">' + esc(n.body || '') + '</div>' +
+        '<div class="sent-meta">읽음 ' + n.reads + '명 · ' + (Number(n.reward) ? '보상 ' + krw(Number(n.reward)) + ' · 받은 사람 ' + n.claims + ' / ' + n.players + '명 · 지급 합계 ' + krw(Number(n.paid)) : '보상 없음') + (n.edited ? ' · 수정됨' : '') + '</div>' +
+        (btns ? '<div class="al-btns" style="align-items:center">' + btns + '</div>' : '') + '</article>';
+    }).join('') + '</div>';
+  }
+  function blankCompose() { return { title: '', body: '', reward: 0, chat: true, edit: null, preview: false, confirm: false }; }
+  async function sendNotice() {
+    var c = ui.compose;
+    if (!c.title.trim()) { toast('제목을 써주세요'); return; }
+    if (c.edit) {
+      var re = await call('admin_notice_edit', { p_id: c.edit, p_title: c.title, p_body: c.body }); if (!re) return;
+      toast('공지를 수정했어요'); ui.compose = blankCompose(); ui.adminTab = 'sent'; state.adminNotices = null; render(); await loadAdmin(); await loadNotices(); render(); return;
+    }
+    var r = await call('admin_notice_send', { p_title: c.title, p_body: c.body, p_reward: c.reward || 0, p_chat: c.chat }); if (!r) return;
+    toast('공지를 보냈어요'); ui.compose = blankCompose(); ui.adminTab = 'sent'; state.adminNotices = null; render(); await loadAdmin(); await loadNotices(); render();
+  }
   async function adminAction(a, k, t) {
+    if (!ui.compose) ui.compose = blankCompose();
+    if (a === 'admin-tab') { ui.adminTab = k; ui.adminSel = null; ui.removeAsk = null; render(); await loadAdmin(); render(); return; }
+    if (a === 'admin-preview') { ui.compose.preview = !ui.compose.preview; render(); return; }
+    if (a === 'admin-send') {
+      if (!ui.compose.edit && ui.compose.reward > 10000000) { ui.compose.confirm = true; render(); return; }
+      sendNotice(); return;
+    }
+    if (a === 'admin-send-no') { ui.compose.confirm = false; render(); return; }
+    if (a === 'admin-send-yes') { ui.compose.confirm = false; sendNotice(); return; }
+    if (a === 'admin-edit-cancel') { ui.compose = blankCompose(); render(); return; }
+    if (a === 'admin-nedit') {
+      var n = (state.adminNotices || []).filter(function (x) { return x.id === Number(k); })[0]; if (!n) return;
+      ui.compose = { title: n.title, body: n.body || '', reward: Number(n.reward), chat: false, edit: n.id, preview: false, confirm: false };
+      ui.adminTab = 'write'; render(); document.body.scrollTo(0, 0); return;
+    }
+    if (a === 'admin-nremove') { ui.removeAsk = Number(k); render(); return; }
+    if (a === 'admin-nremove-no') { ui.removeAsk = null; render(); return; }
+    if (a === 'admin-nremove-yes') {
+      var rr = await call('admin_notice_remove', { p_id: Number(k) }); ui.removeAsk = null; if (!rr) return;
+      toast('공지를 내렸어요'); await loadAdmin(); await loadNotices(); render(); return;
+    }
     if (a === 'admin-open') { ui.adminSel = null; state.adminList = null; openSub('admin'); await loadAdmin(); render(); return; }
     if (a === 'admin-list') { ui.adminSel = null; state.adminDetail = null; render(); await loadAdmin(); render(); return; }
     if (a === 'admin-detail') {
@@ -1522,10 +1729,11 @@ body.busy button[data-action] { cursor: progress; }
     var app = document.getElementById('app');
     var v = ui.view;
     app.className = 'app' + (v === 'detail' ? ' detail-mode' : '');
-    app.innerHTML = v === 'detail' ? viewDetail() : v === 'portfolio' ? viewPortfolio() : v === 'news' ? viewNews() : v === 'bank' ? viewBank() : v === 'shop' ? viewShop() : v === 'profile' ? viewProfile() : v === 'ranking' ? viewRanking() : v === 'admin' ? viewAdmin() : viewMarket(flash);
+    app.innerHTML = v === 'detail' ? viewDetail() : v === 'portfolio' ? viewPortfolio() : v === 'news' ? viewNews() : v === 'bank' ? viewBank() : v === 'shop' ? viewShop() : v === 'profile' ? viewProfile() : v === 'ranking' ? viewRanking() : v === 'admin' ? viewAdmin() : v === 'mail' ? viewMail() : viewMarket(flash);
     document.getElementById('nav').hidden = v === 'detail';
-    document.getElementById('fab').hidden = v === 'detail';
-    document.getElementById('bgm-btn').hidden = v === 'detail';
+    var noFloat = v === 'detail' || v === 'admin' || v === 'mail';   // 글쓰기·공지 화면에서는 떠 있는 버튼이 내용을 가리지 않게
+    document.getElementById('fab').hidden = noFloat;
+    document.getElementById('bgm-btn').hidden = noFloat;
     chatShow(v !== 'detail');
     var btns = document.querySelectorAll('.nav button');
     for (var i = 0; i < btns.length; i++) { var on = btns[i].dataset.view === v; btns[i].classList.toggle('on', on); if (on) btns[i].setAttribute('aria-current', 'page'); else btns[i].removeAttribute('aria-current'); }
@@ -1551,7 +1759,7 @@ body.busy button[data-action] { cursor: progress; }
 
 
   // ---------- 폰 뒤로가기 지원: 종목 상세·레벨 화면은 기록을 남겨서 뒤로가기로 닫힘 ----------
-  function isSub(v) { return v === 'detail' || v === 'profile' || v === 'admin'; }
+  function isSub(v) { return v === 'detail' || v === 'profile' || v === 'admin' || v === 'mail'; }
   function openSub(v) {
     if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = document.body.scrollTop; }
     if (history.state && history.state.sub) history.replaceState({ sub: v }, '');
@@ -1586,6 +1794,7 @@ body.busy button[data-action] { cursor: progress; }
       ui.view = t.dataset.view; ui.confirmReset = false; if (ui.view === 'news') ui.newsFilter = k || 'all'; render(); document.body.scrollTo(0, 0); return;
     }
     if (/^admin-/.test(a)) { adminAction(a, k, t); return; }
+    if (/^mail-/.test(a)) { mailAction(a, k); return; }
     if (a === 'newsf') { ui.newsFilter = k; render(); return; }
     if (a === 'rank-tab') { ui.rankTab = k; render(); return; }
     if (a === 'bank-tab') { ui.bankTab = k; ui.cancel = null; render(); return; }
@@ -1726,7 +1935,8 @@ body.busy button[data-action] { cursor: progress; }
       q(sb.rpc('get_rank_map')),
       q(sb.rpc('get_avg_total')),
       q(sb.rpc('get_people_map')),
-      q(sb.from('seasons').select('id,name,start_at,end_at,closed,results').order('id', { ascending: false }).limit(7))
+      q(sb.from('seasons').select('id,name,start_at,end_at,closed,results').order('id', { ascending: false }).limit(7)),
+      q(sb.rpc('my_notices'))
     ]);
     var hold = {};
     res[0].forEach(function (h) { hold[h.code] = { qty: h.qty, cost: Number(h.cost) }; });
@@ -1772,6 +1982,7 @@ body.busy button[data-action] { cursor: progress; }
     state.tierByNick = tn; state.tierById = tid; state.winsByNick = wn; state.winsById = wi;
     if (typeof chatRepaint === 'function') chatRepaint();
     state.seasons = res[9];
+    state.notices = res[10] || [];
     var cur = res[9].filter(function (x) { return !x.closed; })[0];
     state.season = cur ? { id: cur.id, name: cur.name, start: Date.parse(cur.start_at), end: Date.parse(cur.end_at) } : null;
     state.pastSeasons = res[9].filter(function (x) { return x.closed; });
@@ -1834,7 +2045,7 @@ body.busy button[data-action] { cursor: progress; }
   // 입력 중일 때는 화면을 다시 그리지 않아서 입력값을 지키기
   function safeRender(flash) {
     var ae = document.activeElement;
-    if (ae && ae.tagName === 'INPUT' && ae.closest('#app')) { updateSheet(); updateCountdown(); return; }
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && ae.closest('#app')) { updateSheet(); updateCountdown(); return; }
     render(flash);
   }
 

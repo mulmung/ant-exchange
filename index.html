@@ -602,7 +602,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="xpbar" role="progressbar" aria-label="다음 레벨까지 경험치" aria-valuemin="0" aria-valuemax="' + (info.next || 1) + '" aria-valuenow="' + (info.next ? info.cur : 1) + '"><i style="width:' + w.toFixed(1) + '%;background:' + t.color + '"></i></div>' +
       '<div class="kv"><span class="label">' + (info.next ? '다음 레벨까지' : '최고 레벨 달성') + '</span><span class="num">' + (info.next ? fmt(info.cur) + ' / ' + fmt(info.next) + ' XP' : fmt(p.xp) + ' XP') + '</span></div>' +
       '<div class="kv"><span class="label">오늘 활동 경험치</span><span class="num">' + actToday + ' / ' + ACT_CAP + ' XP</span></div>' +
-      '<div class="kv"><span class="label">오늘 수익 실현 경험치</span><span class="num">' + (p.pxp && p.pxp.d === day() ? p.pxp.xp : 0) + ' / 150 XP</span></div>' +
+      '<div class="kv"><span class="label">오늘 수익 실현 경험치</span><span class="num">' + (p.pxp && p.pxp.d === day() ? p.pxp.xp : 0) + ' XP</span></div>' +
       '<div class="kv"><span class="label">누적 경험치</span><span class="num">' + fmt(p.xp) + ' XP</span></div>' +
       '<div class="nick-row"><label for="nick-input" class="sr">닉네임</label><input id="nick-input" type="text" maxlength="10" autocomplete="off" enterkeyhint="done" value="' + esc(p.nick) + '" placeholder="닉네임 (최대 10자)">' +
       '<button class="ghost" data-action="nick-save" type="button">닉네임 변경</button></div>' +
@@ -656,7 +656,7 @@ body.busy button[data-action] { cursor: progress; }
 
     html += '<div class="sec-head"><h2>경험치 얻는 법</h2></div><section class="card" style="gap:8px">' +
       '<div class="kv"><span>수익 실현 (이익 보고 매도)</span><span class="num">번 돈 1만 원당 1 XP</span></div>' +
-      '<p class="note" style="margin:-4px 0 4px">팔아서 실제로 남긴 돈(세금 전) 기준이라 한 번에 팔든 나눠 팔든 같아요. 게임 속 하루에 150 XP까지 받아요. 손해 보고 팔면 0이고 깎이지는 않아요.</p>' +
+      '<p class="note" style="margin:-4px 0 4px">팔아서 실제로 남긴 돈(세금 전) 기준이라 한 번에 팔든 나눠 팔든 같아요. 받는 양에 제한은 없고, 손해 보고 팔면 0이고 깎이지는 않아요.</p>' +
       '<div class="kv"><span>거래 1회</span><span class="num">+2 XP</span></div>' +
       '<div class="kv"><span>정기 예금·적금 가입</span><span class="num">+3 XP</span></div>' +
       '<p class="note" style="margin:-4px 0 4px">거래와 가입으로 얻는 활동 경험치는 게임 속 하루에 ' + ACT_CAP + ' XP까지예요.</p>' +

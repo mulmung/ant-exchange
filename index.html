@@ -178,6 +178,7 @@ body.busy button[data-action] { cursor: progress; }
 .tl-row.on { background: var(--surface); border-width: 2px; padding: 9px 13px; }
 .tier-claim { border-radius: 10px; border-top: 0; padding: 8px 12px; }
 .win-star { color: #F2C94C; font-weight: 700; margin-right: 3px; font-size: .95em; }
+.pod-b { justify-content: center; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nm { font-weight: 700; }
 .me-chip { border: 0; width: 100%; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; min-height: 44px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1173,7 +1174,7 @@ body.busy button[data-action] { cursor: progress; }
       if (!x) return '<div></div>';
       return '<div class="pod' + (i === 0 ? ' first' : '') + (x.me ? ' me' : '') + '">' +
         (i === 0 ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"></path></svg>' : '') +
-        '<span class="r r' + (i + 1) + '">' + (i + 1) + '위</span><b>' + nameHtml(x.name, x.title) + '</b><span class="pod-t">Lv.' + x.lv + ' · ' + x.title.name + '</span>' +
+        '<span class="r r' + (i + 1) + '">' + (i + 1) + '위</span><b>' + nameHtml(x.name, x.title) + '</b><span class="pod-t">Lv.' + x.lv + ' · ' + x.title.name + '</span>' + badgeHtml(x.badges).replace('class="badges"', 'class="badges pod-b"') +
         (season ? '<small class="num ' + cls(x.score) + '">' + signed(x.score) + '원</small>' : '<small class="num ' + cls(x.ret) + '">' + pct(x.ret) + '</small>') + (season ? '<span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
     }
     var sName = state.season ? state.season.name : '이번 시즌';
@@ -1183,7 +1184,8 @@ body.busy button[data-action] { cursor: progress; }
       '<button class="' + (!season ? 'on' : '') + '" data-action="rank-tab" data-key="all" type="button" aria-pressed="' + !season + '">전체</button></div>' +
       (r.length < 2 ? '<div class="empty">지금은 혼자 플레이 중이에요.<br>친구가 들어오면 여기 함께 표시돼요.</div>' : '') +
       '<div class="podium">' + pod(top[1], 1) + pod(top[0], 0) + pod(top[2], 2) + '</div><div class="list" style="margin:0;gap:2px">';
-    r.forEach(function (x) {
+    // 1~3위는 위 시상대에만 보이고, 아래 목록은 4위부터
+    r.slice(3).forEach(function (x) {
       html += '<div class="rrow' + (x.me ? ' me' : '') + '"><span class="n">' + x.rank + '</span><span class="who">' + nameHtml(x.name, x.title) +
         '<small>Lv.' + x.lv + ' · ' + x.title.name + '</small>' + badgeHtml(x.badges) + '</span>' +
         (season

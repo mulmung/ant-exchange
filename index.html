@@ -158,6 +158,8 @@ body.busy button[data-action] { cursor: progress; }
 .chat-list { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 6px max(16px, env(safe-area-inset-left, 0px)) 10px; display: flex; flex-direction: column; gap: 8px; }
 .cm { font-size: 14px; line-height: 1.45; word-break: break-all; }
 .cm b { margin-right: 6px; font-size: 13px; }
+.rk { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: 999px; margin-right: 5px; vertical-align: 1px; font-variant-numeric: tabular-nums; }
+.chat-last .rk { vertical-align: 1px; }
 .cm time { margin-left: 6px; font-size: 11px; color: var(--muted); }
 .cm.me { background: var(--bg); border-radius: 10px; padding: 6px 10px; margin: 0 -10px; }
 .cm.sys { align-self: center; text-align: center; font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 999px; padding: 4px 12px; }
@@ -1487,6 +1489,7 @@ body.busy button[data-action] { cursor: progress; }
       q(sb.from('events').select('kind,text,amt,tick').eq('player_id', uid).eq('gen', p.gen).order('id', { ascending: false }).limit(300)),
       q(sb.rpc('get_all_ranking')),
       q(sb.rpc('get_season_ranking')),
+      q(sb.rpc('get_rank_map')),
       q(sb.from('seasons').select('id,name,start_at,end_at,closed,results').order('id', { ascending: false }).limit(7))
     ]);
     var hold = {};
@@ -1526,10 +1529,13 @@ body.busy button[data-action] { cursor: progress; }
     state.work = { tier: Math.min(p.work_tier, JOBS.length - 1), last: last, earned: Number(p.work_earned), clicks: p.work_clicks };
     state.ranking = res[4];
     state.seasonRanking = res[5];
-    state.seasons = res[6];
-    var cur = res[6].filter(function (x) { return !x.closed; })[0];
+    var rm = {}; (res[6] || []).forEach(function (x) { rm[x.player_id] = x.rank; });
+    state.rankMap = rm;
+    if (typeof chatRepaint === 'function') chatRepaint();
+    state.seasons = res[7];
+    var cur = res[7].filter(function (x) { return !x.closed; })[0];
     state.season = cur ? { id: cur.id, name: cur.name, start: Date.parse(cur.start_at), end: Date.parse(cur.end_at) } : null;
-    state.pastSeasons = res[6].filter(function (x) { return x.closed; });
+    state.pastSeasons = res[7].filter(function (x) { return x.closed; });
     state.prof.badges = p.badges || [];
     if (oldProf && oldProf.loaded) celebrate(oldProf, state.prof);
     state.prof.loaded = true;
@@ -1786,10 +1792,26 @@ body.busy button[data-action] { cursor: progress; }
   try { chatSeen = Number(localStorage.getItem('ant-chat-seen')) || 0; } catch (e) {}
   var chatEl = document.getElementById('chat'), chatBar = document.getElementById('chat-bar'), chatPanel = document.getElementById('chat-panel'),
       chatList = document.getElementById('chat-list'), chatDim = document.getElementById('chat-dim'), chatInput = document.getElementById('chat-input');
+  // 채팅 순위 표시: 전체 순위 구간별 색 (1~3위 트로피, 4~10위 별, 그 아래는 숫자만, 1001위부터 없음)
+  var RANK_TIERS = [
+    { max: 1, color: '#F2C94C', icon: 'trophy' }, { max: 2, color: '#C9D2E3', icon: 'trophy' }, { max: 3, color: '#E0A57A', icon: 'trophy' },
+    { max: 10, color: '#FF7AA2', icon: 'star' }, { max: 100, color: '#7FB2FF' }, { max: 300, color: '#4FD1C5' },
+    { max: 600, color: '#A3C46B' }, { max: 1000, color: '#8A94A8' }
+  ];
+  function rankChip(pid) {
+    var r = state.rankMap && state.rankMap[pid]; if (!r) return '';
+    var t = null; for (var i = 0; i < RANK_TIERS.length; i++) if (r <= RANK_TIERS[i].max) { t = RANK_TIERS[i]; break; }
+    if (!t) return '';
+    var ic = t.icon === 'trophy' ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"></path></svg>'
+      : t.icon === 'star' ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"></path></svg>' : '';
+    return '<span class="rk" style="color:' + t.color + ';background:' + t.color + '22" title="전체 ' + r + '위" aria-label="전체 ' + r + '위">' + ic + r + '</span>';
+  }
+  function chatRepaint() { if (typeof chatMsgs === 'undefined') return; chatPaintBar(); if (chatOpen) { var y = chatList.scrollTop, atEnd = y + chatList.clientHeight >= chatList.scrollHeight - 4; chatPaintList(); if (!atEnd) chatList.scrollTop = y; } }
+
   function chatName(m) {
     var lv = lvInfo(m.xp || 0).lv, eq = m.equip;
     var t = (eq != null && TITLES[eq] && TITLES[eq].lv <= lv) ? TITLES[eq] : titleFor(lv);
-    return '<b style="color:' + t.color + '">' + esc(m.nick || '') + '</b>';
+    return rankChip(m.player_id) + '<b style="color:' + t.color + '">' + esc(m.nick || '') + '</b>';
   }
   function chatTime(iso) { var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
   function chatShow(on) { chatEl.hidden = !on || !booted; if (chatEl.hidden && chatOpen) chatSetOpen(false); }

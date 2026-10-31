@@ -2088,7 +2088,7 @@ body.busy button[data-action] { cursor: progress; }
   var bgm = document.getElementById('bgm'), bgmBtn = document.getElementById('bgm-btn');
   // 배경 음악 목록: 한 곡이 끝나면 다음 곡, 마지막 곡 다음엔 처음으로
   // 무작위 재생, 같은 곡이 연속으로 나오지 않게
-  var BGM_LIST = ['bgm.mp3?v=2', 'bgm2.mp3?v=1', 'bgm3.mp3?v=1'];
+  var BGM_LIST = ['bgm.mp3?v=2', 'bgm2.mp3?v=1', 'bgm3.mp3?v=1', 'bgm4.mp3?v=1', 'bgm5.mp3?v=1', 'bgm6.mp3?v=1'];
   function bgmPick(except) {
     var opts = [];
     for (var i = 0; i < BGM_LIST.length; i++) if (i !== except) opts.push(i);

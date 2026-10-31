@@ -361,6 +361,28 @@ body.busy button[data-action] { cursor: progress; }
 .nav button.on { color: var(--fg); font-weight: 600; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(196px + env(safe-area-inset-bottom, 0px)); z-index: 20; background: var(--fg); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; max-width: calc(100% - 32px); width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
 .detail-mode ~ .toast { bottom: calc(290px + env(safe-area-inset-bottom, 0px)); }
+
+/* 관리자 알림 (관리자 계정에만 보임) */
+.head-r { display: inline-flex; align-items: center; gap: 6px; }
+.bell { position: relative; width: 34px; height: 34px; border: 0; border-radius: 999px; background: var(--surface); color: var(--soft); display: inline-flex; align-items: center; justify-content: center; }
+.bell b { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--up-btn); color: #FFF; font-size: 11px; line-height: 18px; text-align: center; }
+.al-list { display: flex; flex-direction: column; gap: 8px; }
+.al { background: var(--surface); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 6px; border: 1px solid transparent; }
+.al.new { border-color: #5A2A30; }
+.al-top { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.al-top .dot2 { width: 7px; height: 7px; border-radius: 50%; background: var(--up); flex-shrink: 0; }
+.al-top .dot2.off { background: var(--line); }
+.al-top time { color: var(--muted); font-size: 12px; }
+.al-top b { flex: 1; }
+.al-detail { font-size: 13px; color: var(--soft); line-height: 1.5; }
+.al-btns { display: flex; gap: 8px; margin-top: 4px; }
+.al-btns button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--surface-2); font-size: 12px; font-weight: 600; }
+.al-btns button[disabled] { opacity: .5; }
+.adm-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.adm-tbl th { color: var(--muted); font-weight: 500; text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.adm-tbl td { padding: 7px 4px; border-bottom: 1px solid var(--surface-2); }
+.adm-tbl .r { text-align: right; }
+.hot { color: var(--up); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -529,7 +551,7 @@ body.busy button[data-action] { cursor: progress; }
       if (fs) return n.code === f;
       return true;
     });
-    var html = '<header class="topbar stick"><h1 class="brand">뉴스</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span></header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">뉴스</h1>' + dayPill(60) + '</header>' +
       '<div class="chips" role="group" aria-label="뉴스 필터" style="flex-wrap:wrap">' +
       chip('newsf', 'all', '전체', f) + chip('newsf', 'good', '호재', f) + chip('newsf', 'bad', '악재', f) + chip('newsf', 'mine', '보유 종목', f) +
       (fs ? chip('newsf', f, fs.name, f) : '') + '</div>' +
@@ -791,7 +813,7 @@ body.busy button[data-action] { cursor: progress; }
 
   function viewShop() {
     var w = state.work, cur = JOBS[w.tier];
-    var html = '<header class="topbar stick"><h1 class="brand">상점</h1>' + '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span>' + '</header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">상점</h1>' + dayPill(60) + '</header>' +
       '<p class="sub" style="margin:-8px 0 0">보유 현금 <b class="num" style="color:var(--fg)">' + krw(state.cash) + '</b></p>' +
       '<section class="card" aria-label="돈벌기 버튼"><div class="split"><div style="display:flex;flex-direction:column;gap:4px">' +
       '<span class="label">돈벌기 버튼</span><span class="big num">Lv.' + (w.tier + 1) + '</span>' +
@@ -863,7 +885,7 @@ body.busy button[data-action] { cursor: progress; }
     var n = state.news[0];
     var html = '' +
       '<header class="topbar stick"><h1 class="brand">개미 거래소</h1>' +
-      '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span></header>' +
+      '' + dayPill(60) + '</header>' +
       '<section class="card" aria-label="내 자산 요약">' + meChip() + '<div class="split" style="align-items:flex-start">' +
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="label">내 총 자산</span>' +
       '<span class="big num">' + fmt(total) + '원</span>' +
@@ -1104,7 +1126,7 @@ body.busy button[data-action] { cursor: progress; }
     var barTotal = gross + (state.bank.loan || 0);   // 막대 전체 = 가진 돈 전부 + 대출 (주식 · 은행 · 현금 · 대출)
     var cost = 0; for (var c in state.hold) cost += state.hold[c].cost;
     var pnl = stockV - cost, pnlP = cost ? pnl / cost * 100 : 0;
-    var html = '<header class="topbar stick"><h1 class="brand">내 자산</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">5</b>초</span></span></header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">내 자산</h1>' + dayPill(5) + '</header>' +
       '<section class="card" aria-label="자산 요약">' + meChip() + '<div style="display:flex;flex-direction:column;gap:4px"><span class="label">총 자산</span>' +
       '<span class="big num">' + fmt(total) + '원</span>' + mySeasonLine() + '</div>' +
       '<div class="bar asset-bar" aria-hidden="true"><i style="width:' + (barTotal ? stockV / barTotal * 100 : 0).toFixed(1) + '%"></i><i style="background:var(--gold);width:' + (barTotal ? bankPrincipal() / barTotal * 100 : 0).toFixed(1) + '%"></i>' +
@@ -1217,7 +1239,7 @@ body.busy button[data-action] { cursor: progress; }
         (season ? '<small class="num ' + cls(x.score) + '">' + signed(x.score) + '원</small>' : '<small class="num" style="color:var(--fg)">' + krw(Math.round(x.total / 1e4) * 1e4) + '</small>') + (season ? '<span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
     }
     var sName = state.season ? state.season.name : '이번 시즌';
-    var html = '<header class="stick rank-head"><div class="topbar"><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' + '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span>' + '</div>' +
+    var html = '<header class="stick rank-head"><div class="topbar"><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' + dayPill(60) + '</div>' +
       '<p class="sub">' + (season ? '시즌 동안 주식·은행으로 번 돈 기준 · ' + seasonLeft() + ' · 참가 ' + r.length + '명' : '순자산 기준 · 참가 ' + r.length + '명') + '</p></header>' +
       '<div class="seg rank-seg" role="group" aria-label="랭킹 종류"><button class="' + (season ? 'on' : '') + '" data-action="rank-tab" data-key="season" type="button" aria-pressed="' + season + '">시즌</button>' +
       '<button class="' + (!season ? 'on' : '') + '" data-action="rank-tab" data-key="all" type="button" aria-pressed="' + !season + '">전체</button></div>' +
@@ -1285,7 +1307,7 @@ body.busy button[data-action] { cursor: progress; }
 
   function viewBank() {
     var b = state.bank, principal = bankPrincipal();
-    var html = '<header class="topbar stick"><h1 class="brand">개미 은행</h1><span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">60</b>초</span></span></header>' +
+    var html = '<header class="topbar stick"><h1 class="brand">개미 은행</h1>' + dayPill(60) + '</header>' +
       '<section class="card" aria-label="은행 요약"><div style="display:flex;flex-direction:column;gap:4px"><span class="label">내 예금 총액</span>' +
       '<span class="big num">' + fmt(principal) + '원</span>' +
       '<span class="num" style="font-size:13px;font-weight:600;color:var(--gold)">받은 이자 누적 +' + fmt(b.earned) + '원</span></div>' +
@@ -1406,11 +1428,97 @@ body.busy button[data-action] { cursor: progress; }
   }
 
 
+  // ---------- 관리자 알림 (매크로 의심) : 서버가 관리자인지 확인한 계정에만 보임 ----------
+  var BELL_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>';
+  function dayPill(cd) {
+    var pill = '<span class="pill"><span class="dot"></span><span>Day ' + day() + ' · <b class="num" id="cd">' + cd + '</b>초</span></span>';
+    if (!state.isAdmin) return pill;
+    var n = state.adminUnread || 0;
+    return '<span class="head-r"><button class="bell" data-action="admin-open" type="button" aria-label="관리자 알림' + (n ? ' · 안 읽음 ' + n + '개' : '') + '">' + BELL_SVG + (n ? '<b class="num">' + (n > 99 ? '99+' : n) + '</b>' : '') + '</button>' + pill + '</span>';
+  }
+  function kstTime(iso) {
+    var d = new Date(iso), now = new Date();
+    var hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if (d.toDateString() === now.toDateString()) return hm;
+    var y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return '어제 ' + hm;
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm;
+  }
+  var RULE_TAG = { work_tight: '돈벌기', work_nonstop: '돈벌기', trade_fast: '주식', trade_repeat: '주식', no_client: '요청' };
+  async function loadAdmin() {
+    if (!state.isAdmin) return;
+    try {
+      if (ui.adminSel) state.adminDetail = await q(sb.rpc('admin_detail', { p_pid: ui.adminSel }));
+      else state.adminList = await q(sb.rpc('admin_alerts_list'));
+    } catch (e) { toast(errMsg(e)); }
+  }
+  function viewAdmin() {
+    var head = '<header class="dhead stick"><button class="icon-btn" data-action="back" type="button" aria-label="이전 화면으로 돌아가기">' +
+      '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>';
+    if (ui.adminSel) {
+      var d = state.adminDetail;
+      var html = head + '<div class="dtitle"><b>' + (d ? esc(d.nick) : '불러오는 중') + ' 상세</b><span>최근 24시간 돈벌기 · 최근 거래 20건</span></div></header>';
+      if (!d) return html + '<div class="empty">불러오는 중이에요</div>';
+      html += '<div><button class="link" data-action="admin-list" type="button">← 알림 목록으로</button></div>' +
+        '<section class="card" aria-label="요약">' +
+        '<div class="kv"><span class="label">순자산</span><b class="num">' + krw(Math.round(Number(d.total) / 1e4) * 1e4) + '</b></div>' +
+        '<div class="kv"><span class="label">현금</span><b class="num">' + fmt(Number(d.cash)) + '원</b></div>' +
+        '<div class="kv"><span class="label">돈벌기</span><b class="num">Lv.' + (Math.min(d.work_tier, JOBS.length - 1) + 1) + ' · ' + fmt(d.work_clicks) + '번 · 누적 ' + krw(Number(d.work_earned)) + '</b></div>' +
+        '<div class="kv"><span class="label">가입</span><b class="num">' + kstTime(d.created_at) + '</b></div></section>';
+      html += '<div class="sec-head"><h2>시간대별 돈벌기</h2></div>';
+      if (!d.hours.length) html += '<div class="empty">최근 24시간 돈벌기 기록이 없어요</div>';
+      else html += '<section class="card"><table class="adm-tbl"><thead><tr><th>시간</th><th class="r">횟수</th><th class="r">1분 간격</th><th class="r">기기</th></tr></thead><tbody>' +
+        d.hours.map(function (h) {
+          return '<tr><td>' + kstTime(h.h) + '</td><td class="r num' + (h.n >= 55 ? ' hot' : '') + '">' + h.n + '</td><td class="r num' + (h.tight >= 90 ? ' hot' : '') + '">' + h.tight + '%</td><td class="r">' + esc(h.dev || '') + '</td></tr>';
+        }).join('') + '</tbody></table></section>';
+      html += '<div class="sec-head"><h2>최근 거래</h2></div>';
+      if (!d.trades.length) html += '<div class="empty">거래 기록이 없어요</div>';
+      else html += '<section class="card"><table class="adm-tbl"><thead><tr><th>시각</th><th>종목</th><th class="r">수량</th><th class="r">반응</th><th class="r">기기</th></tr></thead><tbody>' +
+        d.trades.map(function (t) {
+          var r = t.react == null ? '-' : Number(t.react).toFixed(1) + '초';
+          return '<tr><td class="num">' + kstTime(t.at) + '</td><td><span class="' + (t.buy ? 'up' : 'down') + '">' + (t.buy ? '매수' : '매도') + '</span> ' + esc(t.name) + '</td>' +
+            '<td class="r num">' + fmt(t.qty) + '</td><td class="r num' + (t.react != null && t.react <= 2 ? ' hot' : '') + '">' + r + '</td>' +
+            '<td class="r' + (t.ok === false ? ' hot' : '') + '">' + esc(t.dev || '-') + (t.ok === false ? ' ⚠' : '') + '</td></tr>';
+        }).join('') + '</tbody></table><span class="label" style="font-size:12px">반응 = 시세가 바뀐 뒤 몇 초 만에 거래했는지 · ⚠ = 게임 화면 없이 보낸 요청</span></section>';
+      return html;
+    }
+    var list = state.adminList || [], unread = list.filter(function (a) { return !a.read; }).length;
+    var html2 = head + '<div class="dtitle"><b>관리자 알림</b><span>매크로 의심 정황 · 10분마다 자동 검사 · 최근 7일</span></div></header>';
+    if (unread) html2 += '<div style="display:flex;justify-content:flex-end"><button class="link" data-action="admin-read-all" type="button">모두 읽음</button></div>';
+    if (!state.adminList) return html2 + '<div class="empty">불러오는 중이에요</div>';
+    if (!list.length) return html2 + '<div class="empty">아직 의심 정황이 없어요</div>';
+    html2 += '<div class="al-list">' + list.map(function (a) {
+      return '<article class="al' + (a.read ? '' : ' new') + '"><div class="al-top"><i class="dot2' + (a.read ? ' off' : '') + '"></i><time>' + kstTime(a.at) + '</time>' +
+        '<b>' + esc(a.nick || '?') + '</b><span class="tag ' + (a.rule === 'no_client' ? 'up' : 'none') + '">' + (RULE_TAG[a.rule] || '') + '</span></div>' +
+        '<div class="al-detail"><b style="color:var(--fg)">' + esc(a.title || '') + '</b><br>' + esc(a.detail || '') + '</div>' +
+        '<div class="al-btns"><button data-action="admin-detail" data-key="' + a.pid + '" data-id="' + a.id + '" type="button">상세 보기</button>' +
+        '<button data-action="admin-mute" data-key="' + a.pid + '" type="button"' + (a.muted ? ' disabled' : '') + '>' + (a.muted ? '알림 꺼짐 (24시간)' : '24시간 알림 끄기') + '</button></div></article>';
+    }).join('') + '</div>';
+    return html2;
+  }
+  async function adminAction(a, k, t) {
+    if (a === 'admin-open') { ui.adminSel = null; state.adminList = null; openSub('admin'); await loadAdmin(); render(); return; }
+    if (a === 'admin-list') { ui.adminSel = null; state.adminDetail = null; render(); await loadAdmin(); render(); return; }
+    if (a === 'admin-detail') {
+      var id = Number(t.dataset.id);
+      ui.adminSel = k; state.adminDetail = null; render(); document.body.scrollTo(0, 0);
+      try { await q(sb.rpc('admin_read', { p_id: id })); } catch (e) {}
+      await loadAdmin(); await refreshAdminCount(); render(); return;
+    }
+    if (a === 'admin-read-all') { var r = await call('admin_read', { p_id: null }); if (!r) return; await loadAdmin(); await refreshAdminCount(); render(); return; }
+    if (a === 'admin-mute') { var r2 = await call('admin_mute', { p_pid: k }); if (!r2) return; toast('이 플레이어 알림을 24시간 동안 껐어요'); await loadAdmin(); render(); return; }
+  }
+  async function refreshAdminCount() {
+    if (!state.isAdmin) return;
+    try { state.adminUnread = Number(await q(sb.rpc('admin_unread'))) || 0; } catch (e) {}
+  }
+
+
   function render(flash) {
     var app = document.getElementById('app');
     var v = ui.view;
     app.className = 'app' + (v === 'detail' ? ' detail-mode' : '');
-    app.innerHTML = v === 'detail' ? viewDetail() : v === 'portfolio' ? viewPortfolio() : v === 'news' ? viewNews() : v === 'bank' ? viewBank() : v === 'shop' ? viewShop() : v === 'profile' ? viewProfile() : v === 'ranking' ? viewRanking() : viewMarket(flash);
+    app.innerHTML = v === 'detail' ? viewDetail() : v === 'portfolio' ? viewPortfolio() : v === 'news' ? viewNews() : v === 'bank' ? viewBank() : v === 'shop' ? viewShop() : v === 'profile' ? viewProfile() : v === 'ranking' ? viewRanking() : v === 'admin' ? viewAdmin() : viewMarket(flash);
     document.getElementById('nav').hidden = v === 'detail';
     document.getElementById('fab').hidden = v === 'detail';
     document.getElementById('bgm-btn').hidden = v === 'detail';
@@ -1439,7 +1547,7 @@ body.busy button[data-action] { cursor: progress; }
 
 
   // ---------- 폰 뒤로가기 지원: 종목 상세·레벨 화면은 기록을 남겨서 뒤로가기로 닫힘 ----------
-  function isSub(v) { return v === 'detail' || v === 'profile'; }
+  function isSub(v) { return v === 'detail' || v === 'profile' || v === 'admin'; }
   function openSub(v) {
     if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = document.body.scrollTop; }
     if (history.state && history.state.sub) history.replaceState({ sub: v }, '');
@@ -1473,6 +1581,7 @@ body.busy button[data-action] { cursor: progress; }
       if (isSub(ui.view) && history.state && history.state.sub) history.replaceState(null, '');
       ui.view = t.dataset.view; ui.confirmReset = false; if (ui.view === 'news') ui.newsFilter = k || 'all'; render(); document.body.scrollTo(0, 0); return;
     }
+    if (/^admin-/.test(a)) { adminAction(a, k, t); return; }
     if (a === 'newsf') { ui.newsFilter = k; render(); return; }
     if (a === 'rank-tab') { ui.rankTab = k; render(); return; }
     if (a === 'bank-tab') { ui.bankTab = k; ui.cancel = null; render(); return; }
@@ -1663,6 +1772,8 @@ body.busy button[data-action] { cursor: progress; }
     state.season = cur ? { id: cur.id, name: cur.name, start: Date.parse(cur.start_at), end: Date.parse(cur.end_at) } : null;
     state.pastSeasons = res[9].filter(function (x) { return x.closed; });
     state.prof.badges = p.badges || [];
+    if (state.isAdmin == null) { try { state.isAdmin = !!(await q(sb.rpc('is_admin'))); } catch (e) { state.isAdmin = false; } }
+    if (state.isAdmin) { await refreshAdminCount(); if (ui.view === 'admin') await loadAdmin(); }
     if (oldProf && oldProf.loaded) celebrate(oldProf, state.prof);
     state.prof.loaded = true;
   }

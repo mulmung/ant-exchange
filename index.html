@@ -2123,7 +2123,11 @@ body.busy button[data-action] { cursor: progress; }
     if (bgmOn) bgmPlay(); else bgm.pause();
   });
   // 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 켜둔 상태면 첫 터치에 재생
-  document.addEventListener('pointerdown', function () { if (bgmOn && bgm.paused) bgmPlay(); }, true);
+  // 휴대폰은 손가락이 떨어질 때(터치 끝·클릭)만 소리 재생을 허락해서, 그때 시작
+  function bgmKick() { if (bgmOn && bgm.paused) bgmPlay(); }
+  ['touchend', 'click', 'keydown'].forEach(function (ev) { document.addEventListener(ev, bgmKick, true); });
+  // 컴퓨터 브라우저처럼 바로 재생을 허락하는 경우엔 들어오자마자 시작
+  if (bgmOn) setTimeout(bgmPlay, 300);
   document.addEventListener('visibilitychange', function () { if (document.hidden) bgm.pause(); else bgmPlay(); });
   bgmPaint();
 

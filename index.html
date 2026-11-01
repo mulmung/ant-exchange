@@ -1298,11 +1298,11 @@ body.busy button[data-action] { cursor: progress; }
       return '<div class="pod' + (i === 0 ? ' first' : '') + (x.me ? ' me' : '') + '">' +
         (i === 0 ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"></path></svg>' : '') +
         '<span class="r r' + (i + 1) + '">' + (i + 1) + '위</span><b>' + nameHtml(x.name, x.title) + '</b><span class="pod-t">Lv.' + x.lv + ' · ' + x.title.name + '</span>' + badgeHtml(x.badges).replace('class="badges"', 'class="badges pod-b"') +
-        (season ? '<small class="num ' + cls(x.score) + '">' + signed(x.score) + '원</small>' : '<small class="num" style="color:var(--fg)">' + krw(Math.round(x.total / 1e4) * 1e4) + '</small>') + (season ? '<span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
+        (season ? '<small class="num ' + cls(x.score) + '">' + signed(x.score) + '원</small>' : '<small class="num ' + cls(x.pnl) + '">' + pnlStr(x.pnl) + '</small>') + (season ? '<span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
     }
     var sName = state.season ? state.season.name : '이번 시즌';
     var html = '<header class="stick rank-head"><div class="topbar"><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' + dayPill(60) + '</div>' +
-      '<p class="sub">' + (season ? '시즌 동안 주식·은행으로 번 돈 기준 · ' + seasonLeft() + ' · 참가 ' + r.length + '명' : '순자산 기준 · 참가 ' + r.length + '명') + '</p></header>' +
+      '<p class="sub">' + (season ? '시즌 동안 주식·은행으로 번 돈 기준 · ' + seasonLeft() + ' · 참가 ' + r.length + '명' : '주식으로 번 돈 기준 · 참가 ' + r.length + '명') + '</p></header>' +
       '<div class="seg rank-seg" role="group" aria-label="랭킹 종류"><button class="' + (season ? 'on' : '') + '" data-action="rank-tab" data-key="season" type="button" aria-pressed="' + season + '">시즌</button>' +
       '<button class="' + (!season ? 'on' : '') + '" data-action="rank-tab" data-key="all" type="button" aria-pressed="' + !season + '">전체</button></div>' +
       (r.length < 2 ? '<div class="empty">지금은 혼자 플레이 중이에요.<br>친구가 들어오면 여기 함께 표시돼요.</div>' : '') +
@@ -1313,9 +1313,10 @@ body.busy button[data-action] { cursor: progress; }
         '<small>Lv.' + x.lv + ' · ' + x.title.name + '</small>' + badgeHtml(x.badges) + '</span>' +
         (season
           ? '<span class="end"><b class="num ' + cls(x.score) + '">' + signed(x.score) + '원</b><span class="num" style="color:var(--muted)">순자산 ' + krw(Math.round(x.total / 1e4) * 1e4) + '</span></span>'
-          : '<span class="end"><b class="num">' + krw(Math.round(x.total / 1e4) * 1e4) + '</b></span>') + '</div>';
+          : '<span class="end"><b class="num ' + cls(x.pnl) + '">' + pnlStr(x.pnl) + '</b></span>') + '</div>';
     });
     html += '</div>';
+    if (!season) html += '<p class="note">주식으로 번 돈(매도 손익 + 배당 − 거래세)으로 순위를 매겨요. 티어와 같은 기준이에요. 아직 팔지 않은 주식의 손익, 돈벌기, 각종 보상, 은행 이자는 들어가지 않아요.</p>';
     if (season) {
       html += '<p class="note">매달 1일 0시에 시즌이 바뀌어요. 시즌 동안 주식과 은행으로 번 돈(매도 손익, 보유 주식 평가 손익, 배당, 은행 이자 − 거래세 − 낸 대출 이자)으로 순위를 매겨요. 돈벌기와 각종 보상은 들어가지 않아요. 1~3위는 현금, XP(+100·60·40), 기념 뱃지를 받고, 1위는 우승 별 ★을 받아요.</p>' +
         '<section class="card" style="gap:8px"><div class="kv"><b>시즌 보상</b><span class="label">지금 기준 예상</span></div>' +
@@ -1871,15 +1872,17 @@ body.busy button[data-action] { cursor: progress; }
   function bankSize() { return state.bank.vault + lentTotal(); }
   function borrowers() { return state.bankStats.borrowers || 0; }
 
+  // 주식으로 번 돈 표시: 1만 원 이상은 억·만 단위, 그 아래는 원 단위 (+ 수익 / − 손실)
+  function pnlStr(n) { var a = Math.abs(n); return (n > 0 ? '+' : n < 0 ? '−' : '') + (a >= 10000 ? krw(Math.round(a / 1e4) * 1e4) : fmt(a) + '원'); }
   function toRow(x, i, season) {
-    var lv = lvInfo(x.xp).lv, t = x.me ? myTitle() : tierOfNick(x.nick);
-    return { name: x.nick, total: Number(x.total), me: x.me, lv: lv, title: t, rank: i + 1, badges: x.badges || [],
+    var lv = lvInfo(x.xp).lv, t = x.me ? myTitle() : (x.pnl != null ? tierOf(Number(x.pnl)) : tierOfNick(x.nick));
+    return { name: x.nick, total: Number(x.total), pnl: Number(x.pnl) || 0, me: x.me, lv: lv, title: t, rank: i + 1, badges: x.badges || [],
       score: season ? Number(x.score) : 0, start: START_CASH,
       ret: season ? 0 : (Number(x.total) / START_CASH - 1) * 100 };
   }
   function rankings() {
     var r = (state.ranking || []).map(function (x, i) { return toRow(x, i, false); });
-    if (!r.length) r = [{ name: state.prof.nick, total: myTotal(), me: true, lv: myLv(), title: myTitle(), rank: 1, badges: [], score: 0, start: START_CASH, ret: (myTotal() / START_CASH - 1) * 100 }];
+    if (!r.length) r = [{ name: state.prof.nick, total: myTotal(), pnl: state.prof.pnl || 0, me: true, lv: myLv(), title: myTitle(), rank: 1, badges: [], score: 0, start: START_CASH, ret: (myTotal() / START_CASH - 1) * 100 }];
     return r;
   }
   function seasonRankings() {
@@ -1900,7 +1903,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 1;
+  var APP_VER = 2;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
@@ -1953,7 +1956,7 @@ body.busy button[data-action] { cursor: progress; }
       q(sb.from('deposits').select('*').eq('player_id', uid).eq('done', false).order('id')),
       q(sb.from('trades').select('code,name,buy,qty,price,tick').eq('player_id', uid).eq('gen', p.gen).order('id', { ascending: false }).limit(40)),
       q(sb.from('events').select('kind,text,amt,tick').eq('player_id', uid).eq('gen', p.gen).order('id', { ascending: false }).limit(300)),
-      q(sb.rpc('get_all_ranking')),
+      q(sb.rpc('get_all_ranking2')),
       q(sb.rpc('get_season_ranking2')),
       q(sb.rpc('get_rank_map')),
       q(sb.rpc('get_avg_total')),

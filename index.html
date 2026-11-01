@@ -785,16 +785,28 @@ body.busy button[data-action] { cursor: progress; }
       html += '<p class="note" style="margin:0">최고 티어예요.</p>';
     }
     html += '<p class="note" style="margin:0">주식으로 번 돈 = 팔아서 남긴 이익 − 팔아서 본 손해 − 거래세 + 배당금. 손해를 보면 티어가 내려가요. 처음부터 다시 하면 초기화돼요.</p></section>';
-    html += '<div class="tier-ladder">' + TIERS.slice().reverse().map(function (T) {
-      var on = T.name === t.tier;
-      var range = T.steps ? (T.min === -Infinity ? '1억 미만' : krw(T.min) + ' ~ ' + krw(TIERS[TIERS.indexOf(T) + 1].min)) : krw(T.min) + ' 이상';
-      return '<div class="tl-row' + (on ? ' on' : '') + '" style="' + (on ? 'border-color:' + T.color : '') + '"><b style="color:' + T.color + '">' + T.name + (T.steps ? ' 5~1' : '') + '</b><span class="num">' + range + '</span>' + (on ? '<span class="tag gold">지금</span>' : '') + '</div>';
-    }).join('') + '</div>';
+    if (ui.allTiers) {
+      html += '<div class="tier-ladder">' + TIERS.slice().reverse().map(function (T) {
+        var on = T.name === t.tier;
+        var range = T.steps ? (T.min === -Infinity ? '1억 미만' : krw(T.min) + ' ~ ' + krw(TIERS[TIERS.indexOf(T) + 1].min)) : krw(T.min) + ' 이상';
+        return '<div class="tl-row' + (on ? ' on' : '') + '" style="' + (on ? 'border-color:' + T.color : '') + '"><b style="color:' + T.color + '">' + T.name + (T.steps ? ' 5~1' : '') + '</b><span class="num">' + range + '</span>' + (on ? '<span class="tag gold">지금</span>' : '') + '</div>';
+      }).join('') + '</div>';
+    } else {
+      // 지금 등급의 단계만 (1이 위, 5가 아래)
+      var CT = TIERS[t.idx], nextMin = TIERS[t.idx + 1] ? TIERS[t.idx + 1].min : null;
+      html += '<div class="tier-ladder">' + (CT.steps ? [4, 3, 2, 1, 0].map(function (j) {
+        var div = 5 - j, on = t.div === div;
+        var lo = CT.steps[j], hi = j < 4 ? CT.steps[j + 1] : nextMin;
+        var range = (j === 0 && CT.min === -Infinity ? '' : krw(lo) + ' ~ ') + (j === 0 && CT.min === -Infinity ? krw(hi) + ' 미만' : krw(hi));
+        return '<div class="tl-row' + (on ? ' on' : '') + '" style="' + (on ? 'border-color:' + CT.color : '') + '"><b style="color:' + CT.color + '">' + CT.name + ' ' + div + '</b><span class="num">' + range + '</span>' + (on ? '<span class="tag gold">지금</span>' : '') + '</div>';
+      }).join('') : '<div class="tl-row on" style="border-color:' + CT.color + '"><b style="color:' + CT.color + '">' + CT.name + '</b><span class="num">' + krw(CT.min) + ' 이상</span><span class="tag gold">지금</span></div>') + '</div>';
+    }
+    html += '<button class="link" data-action="tier-all" type="button" style="align-self:center">' + (ui.allTiers ? '지금 티어만 보기' : '전체 티어 보기') + '</button>';
     html += '<div class="sec-head"><h2>티어 보상</h2><span class="label">처음 도달할 때 한 번</span></div><div class="ach-list">';
     var curIdx = tierOf(best).idx, hidden = 0;
     TIER_REWARDS.forEach(function (r) {
       var got = p.ach['tier_' + r.key], open = best >= r.need, col = tierOf(r.need).color, ri = tierOf(r.need).idx;
-      if (!ui.allTierRw && !(ri === curIdx || ri === curIdx + 1 || (open && !got))) { hidden++; return; }
+      if (!ui.allTierRw && !(ri === curIdx || (open && !got))) { hidden++; return; }
       html += '<div class="ach' + (got ? ' done' : '') + '"><span class="ach-t"><b style="color:' + (open ? col : 'var(--soft)') + '">' + r.name + '</b><span>주식으로 번 돈 ' + krw(r.need) + ' 달성</span></span>' +
         (got ? '<span class="num ach-xp">' + krw(r.amt) + ' 받음</span>'
           : open ? '<button class="treward claim tier-claim" data-action="claim-tier" data-key="' + r.key + '" type="button">' + krw(r.amt) + ' 받기</button>'
@@ -900,7 +912,7 @@ body.busy button[data-action] { cursor: progress; }
   // 돈벌기 레벨 Lv.1~10: 최소~최대 사이 1원 단위 랜덤 (서버 work_min / work_max / work_cost 와 같은 값)
   var WORK_MIN = [1, 10000, 50000, 200000, 500000, 1000000, 2500000, 5000000, 10000000, 17500000];
   var WORK_MAX = [10000, 50000, 200000, 500000, 1000000, 2500000, 5000000, 10000000, 17500000, 30000000];
-  var WORK_COST = [0, 1500000, 6500000, 18000000, 35000000, 100000000, 220000000, 450000000, 800000000, 1400000000];
+  var WORK_COST = [0, 3000000, 20000000, 70000000, 220000000, 700000000, 2200000000, 6000000000, 14000000000, 36000000000];   // 서버 work_cost 와 같은 값
   var JOBS = WORK_MIN.map(function (lo, i) {
     return { min: lo, max: WORK_MAX[i], pay: (lo + WORK_MAX[i]) / 2, cost: WORK_COST[i] };
   });
@@ -1924,6 +1936,7 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'prof-tab') { ui.profTab = k; render(); return; }
     if (a === 'ach-tab') { ui.achTab = k; render(); return; }
     if (a === 'tier-rw-all') { ui.allTierRw = !ui.allTierRw; render(); return; }
+    if (a === 'tier-all') { ui.allTiers = !ui.allTiers; render(); return; }
     if (a === 'nick-save') { saveNick(); return; }
     if (a === 'claim-tier') {
       call('claim_tier_reward', { p_key: k }).then(function (r) {
@@ -2026,7 +2039,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 10;
+  var APP_VER = 11;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

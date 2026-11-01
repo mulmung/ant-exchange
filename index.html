@@ -1325,7 +1325,7 @@ body.busy button[data-action] { cursor: progress; }
       return '<div class="pod' + (i === 0 ? ' first' : '') + (x.me ? ' me' : '') + '">' +
         (i === 0 ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"></path></svg>' : '') +
         '<span class="r r' + (i + 1) + '">' + (i + 1) + '위</span><b>' + nameHtml(x.name, x.title) + '</b><span class="pod-t">Lv.' + x.lv + ' · ' + x.title.name + '</span>' + badgeHtml(x.badges).replace('class="badges"', 'class="badges pod-b"') +
-        (season ? '<small class="num ' + cls(x.score) + '">' + signed(x.score) + '원</small>' : '<small class="num ' + cls(x.pnl) + '">' + pnlStr(x.pnl) + '</small>') + (season ? '<span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
+        (season ? '<small class="num ' + cls(x.score) + '">' + signed(x.score) + '원</small>' : '<small class="num ' + cls(x.pnl) + '">' + pnlStr(x.pnl) + '</small>') + (season ? '<span class="pod-t num" style="white-space:nowrap;font-size:11px">순자산 ' + krw(Math.round(x.total / 1e4) * 1e4).replace('원', '') + '</span><span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
     }
     var sName = state.season ? state.season.name : '이번 시즌';
     var html = '<header class="stick rank-head"><div class="topbar"><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' + dayPill(60) + '</div>' +
@@ -1954,7 +1954,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 6;
+  var APP_VER = 7;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

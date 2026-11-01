@@ -843,6 +843,7 @@ body.busy button[data-action] { cursor: progress; }
   function short(n) { return n >= 1e8 ? (Math.round(n / 1e7) / 10).toLocaleString('ko-KR') + '억' : fmt(n / 1e4) + '만'; }
   function krw(n) {
     if (n < 0) return '-' + krw(-n);   // 마이너스는 부호만 붙이고 크기로 계산 (예: -30만원)
+    if (n === 0) return '0원';   // -0 이 '-0원'으로 보이지 않게
     var e = Math.floor(n / 1e8), m = Math.round((n % 1e8) / 1e4);
     if (!e && !m) return fmt(n) + '원';
     return (e ? fmt(e) + '억' + (m ? ' ' : '') : '') + (m ? fmt(m) + '만' : '') + '원';

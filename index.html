@@ -162,6 +162,12 @@ body.busy button[data-action] { cursor: progress; }
 .chat-last .rk { vertical-align: 1px; }
 .cm time { margin-left: 6px; font-size: 11px; color: var(--muted); }
 .cm.me { background: var(--bg); border-radius: 10px; padding: 6px 10px; margin: 0 -10px; }
+.chat-tools { display: flex; justify-content: flex-end; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 0; }
+.chat-news-tg { border: 0; background: var(--bg); color: var(--soft); font-size: 12px; font-weight: 600; border-radius: 999px; padding: 6px 12px; min-height: 30px; }
+.cm.news { display: block; width: 100%; border: 0; background: var(--bg); border-radius: 10px; padding: 6px 10px; margin: 0 -10px; width: calc(100% + 20px); text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
+.cm.news.up { color: var(--up); } .cm.news.down { color: var(--down); }
+.cm.news b { margin-right: 4px; }
+.chat-last .newsm.up { color: var(--up); } .chat-last .newsm.down { color: var(--down); }
 .cm.sys { align-self: center; text-align: center; font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 999px; padding: 4px 12px; }
 .chat-empty { margin: auto; color: var(--muted); font-size: 13px; }
 .chat-form { display: flex; gap: 8px; padding: 10px max(16px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); }
@@ -467,6 +473,7 @@ body.busy button[data-action] { cursor: progress; }
     <svg class="chat-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>
   </button>
   <div class="chat-panel" id="chat-panel" hidden>
+    <div class="chat-tools"><button class="chat-news-tg" id="chat-news-tg" type="button" aria-pressed="true">📰 뉴스 숨기기</button></div>
     <div class="chat-list" id="chat-list" aria-live="polite"></div>
     <form class="chat-form" id="chat-form" autocomplete="off">
       <label for="chat-input" class="sr">채팅 입력</label>
@@ -1770,6 +1777,8 @@ body.busy button[data-action] { cursor: progress; }
 
 
   // ---------- 폰 뒤로가기 지원: 종목 상세·레벨 화면은 기록을 남겨서 뒤로가기로 닫힘 ----------
+  var pendingStock = null;
+  function openStock(code) { ui.sel = code; ui.side = 'buy'; ui.qty = 1; ui.period = 'day'; openSub('detail'); }
   function isSub(v) { return v === 'detail' || v === 'profile' || v === 'admin' || v === 'mail'; }
   function openSub(v) {
     if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = document.body.scrollTop; }
@@ -1790,6 +1799,7 @@ body.busy button[data-action] { cursor: progress; }
   }
   window.addEventListener('popstate', function () {
     if (chatOpen) { chatSetOpen(false, true); return; }
+    if (pendingStock) { var pc = pendingStock; pendingStock = null; openStock(pc); return; }
     if (booted && isSub(ui.view)) closeSub();
   });
 
@@ -1823,7 +1833,12 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'sfx-toggle') { setSfx(!sfxOn); render(); if (sfxOn) keyClick(); toast(sfxOn ? '버튼 효과음을 켰어요' : '버튼 효과음을 껐어요'); return; }
     if (a === 'work-claim' || a === 'work-up') { workAction(a); return; }
     if (/^(bk-add|loan-take|loan-repay|sav-in|sav-out|sav-out-all|dep-term|plan-term|dep-open|plan-open|cancel-ask|cancel-no|cancel-yes)$/.test(a)) { bankAction(a, k, t); return; }
-    if (a === 'open') { ui.sel = t.dataset.code; ui.side = 'buy'; ui.qty = 1; ui.period = 'day'; openSub('detail'); return; }
+    if (a === 'open') { openStock(t.dataset.code); return; }
+    if (a === 'chat-news') {   // 채팅의 뉴스를 누르면 채팅을 닫고 그 종목 상세로
+      var cd = t.dataset.code; if (!stock(cd)) return;
+      if (history.state && history.state.chat) { pendingStock = cd; chatSetOpen(false); } else { chatSetOpen(false, true); openStock(cd); }
+      return;
+    }
     if (a === 'back') { goBack(); return; }
     if (a === 'sort') { ui.sort = k; render(); return; }
     if (a === 'period') { ui.period = k; render(); return; }
@@ -1903,7 +1918,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 2;
+  var APP_VER = 3;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
@@ -2269,7 +2284,12 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // ---------- 채팅 ----------
-  var chatMsgs = [], chatOpen = false, chatSeen = 0;
+  var chatMsgs = [], chatOpen = false, chatSeen = 0, CHAT_KEEP = 100, chatNewsOn = true;
+  try { chatNewsOn = localStorage.getItem('ant-chat-news') !== '0'; } catch (e) {}
+  // 뉴스 채팅 = 시스템 메시지 중 종목 코드가 있는 것
+  function isNews(m) { return m.kind === 'sys' && !!m.code; }
+  function chatVisible() { return chatMsgs.filter(function (m) { return chatNewsOn || !isNews(m); }); }
+  function newsLine(m) { return '📰 <b>' + (m.up ? '호재' : '악재') + '</b> · ' + esc(m.text); }
   try { chatSeen = Number(localStorage.getItem('ant-chat-seen')) || 0; } catch (e) {}
   var chatEl = document.getElementById('chat'), chatBar = document.getElementById('chat-bar'), chatPanel = document.getElementById('chat-panel'),
       chatList = document.getElementById('chat-list'), chatDim = document.getElementById('chat-dim'), chatInput = document.getElementById('chat-input');
@@ -2296,18 +2316,21 @@ body.busy button[data-action] { cursor: progress; }
   function chatTime(iso) { var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
   function chatShow(on) { chatEl.hidden = !on || !booted; if (chatEl.hidden && chatOpen) chatSetOpen(false); }
   function chatPaintBar() {
-    var m = chatMsgs[chatMsgs.length - 1], last = document.getElementById('chat-last');
+    var vis = chatVisible(), m = vis[vis.length - 1], last = document.getElementById('chat-last');
     if (!m) last.innerHTML = '채팅 · 눌러서 대화하기';
+    else if (isNews(m)) last.innerHTML = '<span class="newsm ' + (m.up ? 'up' : 'down') + '">' + newsLine(m) + '</span>';
     else if (m.kind === 'sys') last.innerHTML = '<span class="sysm">' + esc(m.text) + '</span>';
     else last.innerHTML = chatName(m) + esc(m.text);
     var myId = session && session.user.id;
-    var n = chatOpen ? 0 : chatMsgs.filter(function (x) { return x.seq > chatSeen && x.player_id !== myId; }).length;
+    var n = chatOpen ? 0 : chatMsgs.filter(function (x) { return x.seq > chatSeen && x.player_id !== myId && !isNews(x); }).length;   // 뉴스는 안 읽은 수에서 제외
     var u = document.getElementById('chat-unread'); u.hidden = !n; u.textContent = n > 9 ? '9+' : n;
   }
   function chatPaintList() {
     var myId = session && session.user.id;
-    if (!chatMsgs.length) { chatList.innerHTML = '<p class="chat-empty">아직 채팅이 없어요. 첫 마디를 남겨보세요</p>'; return; }
-    chatList.innerHTML = chatMsgs.map(function (m) {
+    var vis = chatVisible();
+    if (!vis.length) { chatList.innerHTML = '<p class="chat-empty">아직 채팅이 없어요. 첫 마디를 남겨보세요</p>'; return; }
+    chatList.innerHTML = vis.map(function (m) {
+      if (isNews(m)) return '<button type="button" class="cm news ' + (m.up ? 'up' : 'down') + '" data-action="chat-news" data-code="' + esc(m.code) + '">' + newsLine(m) + '<time>' + chatTime(m.created_at) + '</time></button>';
       if (m.kind === 'sys') return '<div class="cm sys">' + esc(m.text) + '</div>';
       return '<div class="cm' + (m.player_id === myId ? ' me' : '') + '">' + chatName(m) + esc(m.text) + '<time>' + chatTime(m.created_at) + '</time></div>';
     }).join('');
@@ -2320,13 +2343,13 @@ body.busy button[data-action] { cursor: progress; }
   function chatAdd(m) {
     if (chatMsgs.some(function (x) { return x.seq === m.seq; })) return;
     chatMsgs.push(m); chatMsgs.sort(function (a, b) { return a.seq - b.seq; });
-    if (chatMsgs.length > 50) chatMsgs = chatMsgs.slice(-50);
+    if (chatMsgs.length > CHAT_KEEP) chatMsgs = chatMsgs.slice(-CHAT_KEEP);
     if (chatOpen) { chatPaintList(); chatMarkSeen(); }
     chatPaintBar();
   }
   async function chatLoad() {
     try {
-      var rows = await q(sb.from('chat_ring').select('seq,player_id,nick,xp,equip,text,kind,created_at').order('seq', { ascending: false }).limit(50));
+      var rows = await q(sb.from('chat_ring').select('seq,player_id,nick,xp,equip,text,kind,created_at,code,up').order('seq', { ascending: false }).limit(CHAT_KEEP));
       chatMsgs = rows.sort(function (x, y) { return x.seq - y.seq; });
       if (!chatSeen && chatMsgs.length) { chatSeen = chatMsgs[chatMsgs.length - 1].seq - 1; }
     } catch (e) {}
@@ -2351,6 +2374,14 @@ body.busy button[data-action] { cursor: progress; }
     chatPaintBar();
   }
   chatBar.addEventListener('click', function () { chatSetOpen(!chatOpen); });
+  var chatNewsTg = document.getElementById('chat-news-tg');
+  function chatNewsPaint() { chatNewsTg.textContent = chatNewsOn ? '📰 뉴스 숨기기' : '📰 뉴스 보기'; chatNewsTg.setAttribute('aria-pressed', String(chatNewsOn)); }
+  chatNewsTg.addEventListener('click', function (e) {
+    e.stopPropagation(); chatNewsOn = !chatNewsOn;
+    try { localStorage.setItem('ant-chat-news', chatNewsOn ? '1' : '0'); } catch (err) {}
+    chatNewsPaint(); chatPaintList(); chatPaintBar();
+  });
+  chatNewsPaint();
   chatDim.addEventListener('click', function () { chatSetOpen(false); });
   document.getElementById('chat-form').addEventListener('submit', async function (e) {
     e.preventDefault();

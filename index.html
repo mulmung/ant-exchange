@@ -247,6 +247,11 @@ body.busy button[data-action] { cursor: progress; }
 .amt-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .amt-foot .pv { font-size: 12px; color: var(--soft); min-height: 1em; }
 .amt-foot .chip { min-height: 30px; padding: 5px 10px; }
+.pct-chips { display: flex; gap: 6px; }
+.pct-chips .chip { flex: 1; min-height: 34px; padding: 6px 0; font-weight: 600; background: var(--surface-2); }
+.pct-chips .chip.on { background: var(--fg); color: var(--bg); }
+.sav-seg { margin: 2px 0; }
+.sav-seg button.on { background: var(--surface-2); color: var(--fg); }
 .terms { display: flex; gap: 6px; }
 .chip.term { flex: 1; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 50px; }
 .chip.term b { font-size: 14px; }
@@ -1189,8 +1194,8 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="split"><span style="color:var(--soft)">수량</span><div class="stepper">' +
       '<button data-action="qty" data-key="-1" type="button" aria-label="수량 줄이기">−</button>' +
       '<label class="qty-box"><input id="qty-input" class="num" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="주문 수량" value="' + (ui.qty > 0 ? ui.qty : '') + '" placeholder="0"><span>주</span></label>' +
-      '<button data-action="qty" data-key="1" type="button" aria-label="수량 늘리기">+</button>' +
-      '<button class="max" data-action="max" type="button">최대</button></div></div>' +
+      '<button data-action="qty" data-key="1" type="button" aria-label="수량 늘리기">+</button></div></div>' +
+      pctChips('qty-pct', null, ui.qtyPct) +
       '<div class="sum"><div class="split"><span class="label">주문 금액</span><span class="num" id="sum-amt">' + p.amt + '</span></div>' +
       '<div class="split"><span class="label">거래세 (' + (buy ? '매수 0.1%' : '매도 0.2%') + ' · 은행으로)</span><span class="num" id="sum-tax">' + p.tax + '</span></div>' +
       '<div class="split"><span class="label">' + (buy ? '총 결제 금액' : '받을 금액') + '</span><b class="num' + (p.over ? ' warn' : '') + '" id="sum-total">' + p.total + '</b></div>' +
@@ -1205,12 +1210,15 @@ body.busy button[data-action] { cursor: progress; }
       if (e.target.value !== dg) e.target.value = dg;
       ui.bk[f] = dg ? parseInt(dg, 10) : 0;
       var pv = document.getElementById('bk-' + f + '-pv'); if (pv) pv.textContent = ui.bk[f] ? fmt(ui.bk[f]) + '원' : '';
+      if (ui.bkPct) ui.bkPct[f] = null; clearPct(f);
+      var pw = document.getElementById('bk-plan-warn'); if (pw && f === 'plan') pw.hidden = !planWarn();
       return;
     }
     if (e.target.id !== 'qty-input') return;
     var digits = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '').slice(0, 7);
     if (e.target.value !== digits) e.target.value = digits;
     ui.qty = digits ? parseInt(digits, 10) : 0;
+    ui.qtyPct = null; clearPct(null);
     updateSheet();
   });
   document.addEventListener('input', function (e) {
@@ -1407,15 +1415,34 @@ body.busy button[data-action] { cursor: progress; }
     return (h ? h + '시간 ' : '') + m + '분';
   }
 
-  function amtField(field, label, withAll) {
+  // % 버튼의 기준 금액 (100%)
+  var PCTS = [10, 25, 50, 75, 100];
+  function pctBase(field) {
+    var b = state.bank;
+    if (field === 'sav') return ui.savMode === 'out' ? b.sav : state.cash;
+    if (field === 'loan') return loanAvail();
+    if (field === 'repay') return Math.min(state.cash, b.loan);
+    return state.cash;   // 정기 예금, 적금
+  }
+  function pctChips(action, field, sel) {
+    return '<div class="pct-chips" role="group" aria-label="비율로 채우기">' + PCTS.map(function (p) {
+      return '<button class="chip' + (sel === p ? ' on' : '') + '" data-action="' + action + '"' + (field ? ' data-field="' + field + '"' : '') + ' data-key="' + p + '" type="button">' + p + '%</button>';
+    }).join('') + '</div>';
+  }
+  function clearPct(field) {   // 숫자를 직접 고치면 % 선택 표시를 지움
+    var sel = field ? '.pct-chips .chip[data-field="' + field + '"]' : '.pct-chips .chip[data-action="qty-pct"]';
+    var l = document.querySelectorAll(sel); for (var i = 0; i < l.length; i++) l[i].classList.remove('on');
+  }
+  function planWarn() { return ui.bk.plan > 0 && ui.bk.plan * 2 > state.cash; }
+  function amtField(field, label) {
     var v = ui.bk[field];
+    ui.bkPct = ui.bkPct || {};
     return '<div class="field"><label for="bk-' + field + '" class="label">' + label + '</label>' +
       '<div class="amt-box"><input id="bk-' + field + '" data-field="' + field + '" class="num" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" placeholder="0" value="' + (v || '') + '"><span>원</span></div>' +
-      '<div class="amt-foot"><span class="num pv" id="bk-' + field + '-pv">' + (v ? fmt(v) + '원' : '') + '</span><div class="chips">' +
-      '<button class="chip" data-action="bk-add" data-field="' + field + '" data-key="100000" type="button">+10만</button>' +
-      '<button class="chip" data-action="bk-add" data-field="' + field + '" data-key="1000000" type="button">+100만</button>' +
-      (withAll ? '<button class="chip" data-action="bk-add" data-field="' + field + '" data-key="' + (withAll === true ? 'all' : withAll) + '" type="button">' + ({ loanmax: '최대', repayall: '전액 상환' }[withAll] || '현금 전액') + '</button>' : '') +
-      '</div></div></div>';
+      '<div class="amt-foot"><span class="num pv" id="bk-' + field + '-pv">' + (v ? fmt(v) + '원' : '') + '</span></div>' +
+      pctChips('bk-pct', field, ui.bkPct[field]) +
+      (field === 'plan' ? '<p class="note warn" id="bk-plan-warn" style="margin:0"' + (planWarn() ? '' : ' hidden') + '>⚠️ 매일 이 금액이 현금에서 빠져나가요. 현금이 부족하면 납입이 실패해요.</p>' : '') +
+      '</div>';
   }
 
   function termChips(action, terms, cur) {
@@ -1466,10 +1493,10 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="kv"><span class="label">지금 빌릴 수 있는 금액</span><b class="num">' + fmt(av) + '원</b></div>' +
       (av < lim - b.loan ? '<p class="note warn" style="margin:0">은행에 남은 자금이 부족해서 한도보다 적게 빌릴 수 있어요.</p>' : '') +
       (b.loan ? '<div class="kv"><span class="label">다음 이자</span><span class="num">' + fmt(due) + '원 · ' + timeLeft(DAY_TICKS - state.tick % DAY_TICKS) + ' 후</span></div>' : '') +
-      amtField('loan', '빌릴 금액', 'loanmax') +
+      amtField('loan', '빌릴 금액') +
       '<button class="btn-loan wide" data-action="loan-take" type="button"' + (av >= LOAN_MIN ? '' : ' disabled') + '>' + (av >= LOAN_MIN ? '대출 받기' : '지금은 빌릴 수 있는 금액이 없어요') + '</button>';
     if (b.loan) {
-      html += '<div class="acct">' + amtField('repay', '갚을 금액', 'repayall') +
+      html += '<div class="acct">' + amtField('repay', '갚을 금액') +
         '<button class="btn-line wide" data-action="loan-repay" type="button">상환하기</button></div>';
     }
     html += '</section>';
@@ -1480,9 +1507,10 @@ body.busy button[data-action] { cursor: progress; }
       '<p class="note">언제든 넣고 뺄 수 있어요. 이자는 하루 동안 계속 넣어둔 금액에만 붙어서, 오늘 넣은 돈은 내일 마감부터 이자가 나와요.</p>' +
       '<div class="kv"><span class="label">잔액</span><b class="num">' + fmt(b.sav) + '원</b></div>' +
       '<div class="kv"><span class="label">오늘 이자 대상</span><span class="num">' + fmt(b.savMin) + '원 → +' + fmt(Math.floor(b.savMin * SAV_RATE / 100)) + '원</span></div>' +
-      amtField('sav', '금액', true) +
-      '<div class="btn-row"><button class="btn-gold" data-action="sav-in" type="button">입금</button><button class="btn-line" data-action="sav-out" type="button">출금</button>' +
-      (b.sav ? '<button class="ghost small" data-action="sav-out-all" type="button">전액 출금</button>' : '') + '</div></section>';
+      '<div class="seg sav-seg" role="group" aria-label="넣기 또는 빼기"><button class="' + (ui.savMode !== 'out' ? 'on' : '') + '" data-action="sav-mode" data-key="in" type="button" aria-pressed="' + (ui.savMode !== 'out') + '">넣기</button>' +
+      '<button class="' + (ui.savMode === 'out' ? 'on' : '') + '" data-action="sav-mode" data-key="out" type="button" aria-pressed="' + (ui.savMode === 'out') + '">빼기</button></div>' +
+      amtField('sav', ui.savMode === 'out' ? '뺄 금액 (예금 잔액 기준)' : '넣을 금액 (현금 기준)') +
+      (ui.savMode === 'out' ? '<button class="btn-line wide" data-action="sav-out" type="button">빼기</button>' : '<button class="btn-gold wide" data-action="sav-in" type="button">넣기</button>') + '</section>';
 
     var cut3 = html.length;
     // 정기 예금
@@ -1490,7 +1518,7 @@ body.busy button[data-action] { cursor: progress; }
     html += '<section class="card product" aria-label="정기 예금"><div class="split"><h2>정기 예금</h2><span class="tag gold">최대 하루 0.3%</span></div>' +
       '<p class="note">목돈을 한 번에 넣고 기간 동안 묶어둬요. 만기에 원금과 이자가 현금으로 돌아와요. 최소 ' + fmt(DEP_MIN) + '원.</p>' +
       '<div class="terms" role="group" aria-label="정기 예금 기간">' + termChips('dep-term', DEP_TERMS, dterm) + '</div>' +
-      amtField('dep', '맡길 금액', true) +
+      amtField('dep', '맡길 금액') +
       (damt ? '<div class="kv"><span class="label">만기 예상 수령액</span><b class="num" style="color:var(--gold)">' + fmt(damt + Math.floor(damt * drate / 100 * dterm)) + '원</b></div>' : '') +
       '<button class="btn-gold wide" data-action="dep-open" type="button">' + dterm + '일 정기 예금 가입</button>';
     b.deps.forEach(function (d) {
@@ -1507,7 +1535,7 @@ body.busy button[data-action] { cursor: progress; }
     html += '<section class="card product" aria-label="적금"><div class="split"><h2>적금</h2><span class="tag gold">최대 하루 0.55%</span></div>' +
       '<p class="note">매일 같은 금액을 자동으로 넣어요. 가입할 때 첫 회차가 바로 빠지고, 이후 매일 마감 때 현금에서 빠져요. 현금이 모자라면 그날은 납입이 빠져요. 최소 ' + fmt(PLAN_MIN) + '원.</p>' +
       '<div class="terms" role="group" aria-label="적금 기간">' + termChips('plan-term', PLAN_TERMS, pterm) + '</div>' +
-      amtField('plan', '매일 넣을 금액', false) +
+      amtField('plan', '매일 넣을 금액') +
       (ui.bk.plan ? '<div class="kv"><span class="label">총 납입 예정</span><span class="num">' + fmt(ui.bk.plan * Number(pterm)) + '원 (' + pterm + '회)</span></div>' : '') +
       '<button class="btn-gold wide" data-action="plan-open" type="button">' + pterm + '일 적금 가입</button>';
     b.plans.forEach(function (p) {
@@ -1852,7 +1880,7 @@ body.busy button[data-action] { cursor: progress; }
 
   // ---------- 폰 뒤로가기 지원: 종목 상세·레벨 화면은 기록을 남겨서 뒤로가기로 닫힘 ----------
   var pendingStock = null;
-  function openStock(code) { ui.sel = code; ui.side = 'buy'; ui.qty = 1; ui.period = 'day'; openSub('detail'); }
+  function openStock(code) { ui.sel = code; ui.side = 'buy'; ui.qty = 1; ui.qtyPct = null; ui.period = 'day'; openSub('detail'); }
   function isSub(v) { return v === 'detail' || v === 'profile' || v === 'admin' || v === 'mail'; }
   function openSub(v) {
     if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = document.body.scrollTop; }
@@ -1907,7 +1935,7 @@ body.busy button[data-action] { cursor: progress; }
     }
     if (a === 'sfx-toggle') { setSfx(!sfxOn); render(); if (sfxOn) keyClick(); toast(sfxOn ? '버튼 효과음을 켰어요' : '버튼 효과음을 껐어요'); return; }
     if (a === 'work-claim' || a === 'work-up') { workAction(a); return; }
-    if (/^(bk-add|loan-take|loan-repay|sav-in|sav-out|sav-out-all|dep-term|plan-term|dep-open|plan-open|cancel-ask|cancel-no|cancel-yes)$/.test(a)) { bankAction(a, k, t); return; }
+    if (/^(bk-add|bk-pct|sav-mode|loan-take|loan-repay|sav-in|sav-out|sav-out-all|dep-term|plan-term|dep-open|plan-open|cancel-ask|cancel-no|cancel-yes)$/.test(a)) { bankAction(a, k, t); return; }
     if (a === 'open') { openStock(t.dataset.code); return; }
     if (a === 'chat-news') {   // 채팅의 뉴스를 누르면 채팅을 닫고 그 종목 상세로
       var cd = t.dataset.code; if (!stock(cd)) return;
@@ -1917,9 +1945,14 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'back') { goBack(); return; }
     if (a === 'sort') { ui.sort = k; render(); return; }
     if (a === 'period') { ui.period = k; render(); return; }
-    if (a === 'side') { ui.side = k; ui.qty = 1; renderSheet(); return; }
-    if (a === 'qty') { var mx = maxQty(stock(ui.sel)); ui.qty = Math.min(Math.max(1, ui.qty + Number(k)), Math.max(1, mx)); renderSheet(); return; }
+    if (a === 'side') { ui.side = k; ui.qty = 1; ui.qtyPct = null; renderSheet(); return; }
+    if (a === 'qty') { ui.qtyPct = null; var mx = maxQty(stock(ui.sel)); ui.qty = Math.min(Math.max(1, ui.qty + Number(k)), Math.max(1, mx)); renderSheet(); return; }
     if (a === 'max') { ui.qty = Math.max(1, maxQty(stock(ui.sel))); renderSheet(); return; }
+    if (a === 'qty-pct') {   // 매수 = 살 수 있는 최대 수량 기준, 매도 = 보유 수량 기준 (0주가 되면 1주)
+      var mq = maxQty(stock(ui.sel));
+      if (mq < 1) { toast(ui.side === 'buy' ? '현금이 부족해요' : '보유한 주식이 없어요'); return; }
+      ui.qtyPct = Number(k); ui.qty = Math.max(1, Math.floor(mq * Number(k) / 100)); renderSheet(); return;
+    }
     if (a === 'order') { order(); return; }
     if ((a === 'reset-ask' || a === 'reset-confirm') && state.bank.loan) { toast('대출을 모두 갚아야 처음부터 다시 할 수 있어요'); return; }
     if (a === 'reset-ask') { ui.confirmReset = true; render(); return; }
@@ -1993,7 +2026,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 9;
+  var APP_VER = 10;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
@@ -2228,6 +2261,13 @@ body.busy button[data-action] { cursor: progress; }
       if (v > state.cash) { toast('현금이 부족해요 · 보유 현금 ' + fmt(state.cash) + '원'); return false; }
       return true;
     }
+    if (a === 'bk-pct') {
+      var pf = t.dataset.field, pp = Number(k);
+      ui.bkPct = ui.bkPct || {}; ui.bkPct[pf] = pp;
+      ui.bk[pf] = Math.max(0, Math.floor(pctBase(pf) * pp / 100));
+      render(); return;
+    }
+    if (a === 'sav-mode') { ui.savMode = k; ui.bk.sav = 0; if (ui.bkPct) ui.bkPct.sav = null; render(); return; }
     if (a === 'bk-add') {
       var f = t.dataset.field;
       ui.bk[f] = k === 'all' ? state.cash : k === 'loanmax' ? loanAvail() : k === 'repayall' ? Math.min(state.cash, b.loan) : Math.min((ui.bk[f] || 0) + Number(k), 9999999999);
@@ -2241,13 +2281,13 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'sav-in') {
       amt = ui.bk.sav; if (!need(amt)) return;
       r = await call('sav_move', { p_amt: amt, p_in: true });
-      if (r) { ui.bk.sav = 0; toast('자유 예금에 ' + fmt(amt) + '원을 넣었어요'); }
+      if (r) { ui.bk.sav = 0; ui.bkPct.sav = null; toast('자유 예금에 ' + fmt(amt) + '원을 넣었어요'); }
     } else if (a === 'sav-out' || a === 'sav-out-all') {
       amt = a === 'sav-out-all' ? b.sav : ui.bk.sav;
       if (!(amt > 0)) { toast('뺄 금액을 입력해주세요'); return; }
       if (amt > b.sav) { toast('예금 잔액이 부족해요 · 잔액 ' + fmt(b.sav) + '원'); return; }
       r = await call('sav_move', { p_amt: amt, p_in: false });
-      if (r) { ui.bk.sav = 0; toast('자유 예금에서 ' + fmt(amt) + '원을 뺐어요'); }
+      if (r) { ui.bk.sav = 0; ui.bkPct.sav = null; toast('자유 예금에서 ' + fmt(amt) + '원을 뺐어요'); }
     } else if (a === 'dep-open') {
       amt = ui.bk.dep; if (!need(amt, DEP_MIN)) return;
       r = await call('open_deposit', { p_kind: 'dep', p_amt: amt, p_term: Number(ui.bk.depTerm) });

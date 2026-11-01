@@ -438,6 +438,19 @@ body.busy button[data-action] { cursor: progress; }
 .nt-who-l { display: flex; flex-wrap: wrap; gap: 6px; }
 .nt-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); font-size: 13px !important; color: var(--fg) !important; }
 .nt-chip.off { background: var(--bg); color: var(--muted) !important; text-decoration: line-through; }
+.ver-foot { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 18px 0 6px; font-size: 12px; color: var(--muted); }
+.new-pip { width: 8px; height: 8px; border-radius: 50%; background: var(--up-btn); flex-shrink: 0; }
+.new-dot { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--up-btn); color: #FFF; font-size: 10px; font-weight: 700; vertical-align: 1px; }
+.pn-list { display: flex; flex-direction: column; gap: 10px; }
+.pn { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; border-left: 3px solid var(--line); }
+.pn.big { border-left-color: var(--gold); background: linear-gradient(90deg, #2A2616 0%, var(--surface) 60%); }
+.pn-top { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.pn-top b { font-size: 15px; color: var(--fg); }
+.pn h3 { margin: 0; font-size: 15px; }
+.pn ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--soft); line-height: 1.5; }
+.upd-banner { position: fixed; left: 50%; transform: translateX(-50%); top: calc(12px + env(safe-area-inset-top, 0px)); z-index: 30; width: calc(100% - 32px); max-width: 420px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #2A2616; border: 1px solid #6B5A23; color: var(--gold); font-size: 13px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+.upd-banner span { flex: 1; }
+.upd-banner button { border: 0; border-radius: 10px; background: var(--gold); color: #1A1606; font-size: 12px; font-weight: 700; padding: 8px 10px; white-space: nowrap; }
 .sent-meta { font-size: 12px; color: var(--muted); line-height: 1.6; }
 </style>
 </head>
@@ -498,6 +511,7 @@ body.busy button[data-action] { cursor: progress; }
   </div>
 </section>
 <div class="toast" id="toast" role="status" hidden></div>
+<div class="upd-banner" id="upd-banner" role="status" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -749,6 +763,7 @@ body.busy button[data-action] { cursor: progress; }
       '<b>' + nameHtml(state.prof.nick, t, myWins()) + '</b><span class="t">Lv.' + info.lv + ' · ' + t.name + '</span>' +
       '<span class="mini-xp" aria-hidden="true"><i style="width:' + w.toFixed(1) + '%;background:' + t.color + '"></i></span>' +
       (unclaimedTitles().length ? '<span class="claim-dot">보상 ' + unclaimedTitles().length + '</span>' : '') +
+      (notesUnseen() ? '<i class="new-pip" aria-label="새 업데이트"></i>' : '') +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--muted)"><path d="M9 18l6-6-6-6"></path></svg></button>';
   }
 
@@ -894,7 +909,8 @@ body.busy button[data-action] { cursor: progress; }
       return '<button class="bank-tab' + (on ? ' on' : '') + '" role="tab" aria-selected="' + on + '" data-action="prof-tab" data-key="' + x[0] + '" type="button">' +
         '<b>' + x[1] + (x[3] ? ' <i class="tab-dot" aria-label="받을 보상 있음"></i>' : '') + '</b><span class="num">' + x[2] + '</span></button>';
     }).join('') + '</div>';
-    html = head + nav + secs[tab];
+    html = head + nav + secs[tab] +
+      '<div class="ver-foot"><span>개미 거래소 v' + APP_SEMVER + '</span><button class="link" data-action="patch-open" type="button">업데이트 내역 보기 ›' + (notesUnseen() ? ' <b class="new-dot">NEW</b>' : '') + '</button></div>';
     return html;
   }
 
@@ -1857,13 +1873,83 @@ body.busy button[data-action] { cursor: progress; }
   }
 
 
+  // ---------- 버전 · 업데이트 내역 ----------
+  // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
+  var PATCH_NOTES = [
+    { v: '3.0.0', d: '11/1', title: '경제 밸런스 대개편', items: [
+      '티어가 9등급으로 늘었어요: 잡주 · 동전주 · 지폐주 · 테마주 · 우량주 · 대형주 · 블루칩 · 레드칩 · 황제주',
+      '모든 티어 단계(5~1)에 보상이 생겼어요. 이미 지난 단계 보상도 받을 수 있어요',
+      '돈벌기 레벨 가격이 올랐고, 기존 레벨은 쓴 돈 기준으로 조정됐어요 (한 번에 받는 금액은 그대로)',
+      '티어 화면은 지금 티어의 단계만 보여줘요 (전체 보기 가능)',
+      '버전 표시와 업데이트 내역 화면이 생겼어요'] },
+    { v: '2.9.0', d: '11/1', items: ['은행 금액 칸과 주식 주문 수량에 10 · 25 · 50 · 75 · 100% 버튼', '자유 예금은 넣기 / 빼기를 골라서 사용'] },
+    { v: '2.8.1', d: '11/1', items: ['시즌 랭킹 1~3위에도 순자산 표시', '시즌 점수를 억·만 단위로 짧게 표시'] },
+    { v: '2.8.0', d: '11/1', items: ['뉴스가 채팅에도 올라와요 (누르면 종목으로 이동)', '채팅창의 신문 아이콘으로 뉴스 숨기기 / 보기', '채팅을 100개까지 보관'] },
+    { v: '2.7.0', d: '11/1', items: ['전체 랭킹 기준을 "주식으로 번 돈"(티어 기준)으로 변경'] },
+    { v: '2.6.0', d: '11/1', items: ['새 버전이 나오면 화면이 스스로 새로고침돼요', '마이너스 금액이 잘못 보이던 문제 수정', '운영 기능 개선'] },
+    { v: '2.5.0', d: '11/1', items: ['시즌 보상 기준을 "시즌 1~3위가 번 돈의 평균"으로 변경', '배경 음악이 멈추던 문제 해결 (끊기면 자동으로 다시 재생)'] },
+    { v: '2.4.0', d: '11/1', items: ['새 종목 4개: 맛나식품 · 하늘항공 · 픽셀게임즈 · 은하우주'] },
+    { v: '2.3.0', d: '11/1', items: ['공지함이 생겼어요 (공지는 24시간 뒤 사라지고, 보상은 [받기]로 수령)'] },
+    { v: '2.2.0', d: '11/1', items: ['레벨 경험치 표 변경, 최고 레벨 1,000', '전체 채팅 레벨 알림은 100레벨마다'] },
+    { v: '2.1.0', d: '11/1', items: ['배경 음악 6곡 무작위 재생 (같은 곡 연속 없음)', '운영 기능 개선'] },
+    { v: '2.0.0', d: '10/31', title: '티어 · 시즌 개편', items: [
+      '레벨 칭호 대신 "주식으로 번 돈"으로 정해지는 주식 티어가 생겼어요',
+      '시즌 순위는 시즌 동안 주식 · 은행으로 번 돈으로 정해져요',
+      '채팅 이름 옆에 시즌 순위 표시',
+      '레벨 화면을 뱃지 · 티어 · 업적 · 경험치 탭으로 정리'] },
+    { v: '1.11.0', d: '10/31', items: ['주식 수익 실현 경험치 (1만 원당 1 XP)', '배경 음악 2곡'] },
+    { v: '1.10.0', d: '10/31', items: ['시즌 보상 금액 공식 변경'] },
+    { v: '1.9.0', d: '10/31', items: ['칭호 보상금 받기'] },
+    { v: '1.8.0', d: '10/30', items: ['채팅이 생겼어요'] },
+    { v: '1.7.0', d: '10/30', items: ['은행 화면을 메뉴별로 정리', '내 자산 비율 막대에 대출 표시', '적금 이율 인상'] },
+    { v: '1.6.0', d: '10/30', items: ['시즌 뱃지 보관함', '화면 위쪽 제목 줄 고정'] },
+    { v: '1.5.0', d: '10/30', items: ['월간 시즌 랭킹'] },
+    { v: '1.4.0', d: '10/30', items: ['은행 업적'] },
+    { v: '1.3.0', d: '10/29', items: ['돈벌기 Lv.1~10, 시작 자금 100만 원'] },
+    { v: '1.2.0', d: '10/29', items: ['배경 음악과 버튼 효과음'] },
+    { v: '1.1.0', d: '10/29', items: ['주식 거래세 (매수 0.1%, 매도 0.2%)', '종목 로고, 1분봉 차트, 폰 뒤로가기'] },
+    { v: '1.0.0', d: '10/29', title: '개미 거래소 출시', items: ['1분마다 바뀌는 실시간 시세, 뉴스, 배당, 은행, 레벨, 돈벌기'] }
+  ];
+  var APP_SEMVER = PATCH_NOTES[0].v;
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function notesUnseen() { return lsGet('ant-notes-seen') !== APP_SEMVER; }
+  function isMajor(n) { return /^\d+\.0\.0$/.test(n.v); }
+  function viewPatch() {
+    var html = '<header class="dhead stick"><button class="icon-btn" data-action="back" type="button" aria-label="이전 화면으로 돌아가기">' +
+      '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>' +
+      '<div class="dtitle"><b>업데이트 내역</b><span>개미 거래소 v' + APP_SEMVER + '</span></div></header>';
+    var list = ui.allNotes ? PATCH_NOTES : PATCH_NOTES.slice(0, 10);
+    html += '<div class="pn-list">' + list.map(function (n, i) {
+      var big = isMajor(n);
+      return '<article class="pn' + (big ? ' big' : '') + '"><div class="pn-top"><b class="num">v' + n.v + '</b><span>' + n.d + '</span>' +
+        (big ? '<span class="tag gold">대규모 업데이트</span>' : (i === 0 ? '<span class="tag none">최신</span>' : '')) + '</div>' +
+        (n.title ? '<h3>' + esc(n.title) + '</h3>' : '') +
+        '<ul>' + n.items.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></article>';
+    }).join('') + '</div>';
+    if (PATCH_NOTES.length > 10) html += '<button class="link" data-action="patch-more" type="button" style="align-self:center">' + (ui.allNotes ? '접기' : '지난 업데이트 더 보기 (v' + PATCH_NOTES[PATCH_NOTES.length - 1].v + ' ~ v' + PATCH_NOTES[10].v + ')') + '</button>';
+    return html;
+  }
+  // 업데이트 직후 한 번: 앞자리·가운데 자리가 바뀐 경우만 안내 (뒷자리는 NEW 표시만)
+  function updateBannerCheck() {
+    var last = lsGet('ant-last-ver');
+    lsSet('ant-last-ver', APP_SEMVER);
+    if (last === APP_SEMVER) return;
+    var a = (last || '0.0.0').split('.'), b = APP_SEMVER.split('.');
+    if (last && a[0] === b[0] && a[1] === b[1]) return;
+    var el = document.getElementById('upd-banner'), n = PATCH_NOTES[0];
+    el.innerHTML = '<span>🎉 v' + n.v + ' 업데이트' + (n.title ? ' · ' + esc(n.title) : '') + '</span><button data-action="patch-open" type="button">바뀐 점 보기</button>';
+    el.hidden = false;
+    setTimeout(function () { el.hidden = true; }, 9000);
+  }
+
   function render(flash) {
     var app = document.getElementById('app');
     var v = ui.view;
     app.className = 'app' + (v === 'detail' ? ' detail-mode' : '');
-    app.innerHTML = v === 'detail' ? viewDetail() : v === 'portfolio' ? viewPortfolio() : v === 'news' ? viewNews() : v === 'bank' ? viewBank() : v === 'shop' ? viewShop() : v === 'profile' ? viewProfile() : v === 'ranking' ? viewRanking() : v === 'admin' ? viewAdmin() : v === 'mail' ? viewMail() : viewMarket(flash);
+    app.innerHTML = v === 'detail' ? viewDetail() : v === 'portfolio' ? viewPortfolio() : v === 'news' ? viewNews() : v === 'bank' ? viewBank() : v === 'shop' ? viewShop() : v === 'profile' ? viewProfile() : v === 'ranking' ? viewRanking() : v === 'admin' ? viewAdmin() : v === 'mail' ? viewMail() : v === 'patch' ? viewPatch() : viewMarket(flash);
     document.getElementById('nav').hidden = v === 'detail';
-    var noFloat = v === 'detail' || v === 'admin' || v === 'mail';   // 글쓰기·공지 화면에서는 떠 있는 버튼이 내용을 가리지 않게
+    var noFloat = v === 'detail' || v === 'admin' || v === 'mail' || v === 'patch';   // 글쓰기·공지 화면에서는 떠 있는 버튼이 내용을 가리지 않게
     document.getElementById('fab').hidden = noFloat;
     document.getElementById('bgm-btn').hidden = noFloat;
     chatShow(v !== 'detail');
@@ -1893,7 +1979,7 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 폰 뒤로가기 지원: 종목 상세·레벨 화면은 기록을 남겨서 뒤로가기로 닫힘 ----------
   var pendingStock = null;
   function openStock(code) { ui.sel = code; ui.side = 'buy'; ui.qty = 1; ui.qtyPct = null; ui.period = 'day'; openSub('detail'); }
-  function isSub(v) { return v === 'detail' || v === 'profile' || v === 'admin' || v === 'mail'; }
+  function isSub(v) { return v === 'detail' || v === 'profile' || v === 'admin' || v === 'mail' || v === 'patch'; }
   function openSub(v) {
     if (!isSub(ui.view)) { ui.prevView = ui.view; ui.prevScroll = document.body.scrollTop; }
     if (history.state && history.state.sub) history.replaceState({ sub: v }, '');
@@ -1930,6 +2016,8 @@ body.busy button[data-action] { cursor: progress; }
     }
     if (/^admin-/.test(a)) { adminAction(a, k, t); return; }
     if (/^mail-/.test(a)) { mailAction(a, k); return; }
+    if (a === 'patch-open') { document.getElementById('upd-banner').hidden = true; lsSet('ant-notes-seen', APP_SEMVER); ui.allNotes = false; openSub('patch'); return; }
+    if (a === 'patch-more') { ui.allNotes = !ui.allNotes; render(); return; }
     if (a === 'newsf') { ui.newsFilter = k; render(); return; }
     if (a === 'rank-tab') { ui.rankTab = k; render(); return; }
     if (a === 'bank-tab') { ui.bankTab = k; ui.cancel = null; render(); return; }
@@ -2039,7 +2127,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 11;
+  var APP_VER = 12;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
@@ -2536,6 +2624,7 @@ body.busy button[data-action] { cursor: progress; }
       await loadMe();
       booted = true;
       ui.view = 'market';
+      setTimeout(updateBannerCheck, 800);
       render();
       chatLoad();
     } catch (e) {

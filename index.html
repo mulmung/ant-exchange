@@ -1206,7 +1206,7 @@ body.busy button[data-action] { cursor: progress; }
   function mySeasonLine() {
     var me = seasonRankings().filter(function (x) { return x.me; })[0];
     if (!me || !state.season) return '';
-    return '<span class="num ' + cls(me.score) + '" style="font-size:13px;font-weight:600">' + esc(state.season.name) + ' ' + signed(me.score) + '원 · ' + me.rank + '위</span>';
+    return '<span class="num ' + cls(me.score) + '" style="font-size:13px;font-weight:600">' + esc(state.season.name) + ' ' + pnlStr(me.score) + ' · ' + me.rank + '위</span>';
   }
 
   function viewPortfolio() {
@@ -1325,7 +1325,7 @@ body.busy button[data-action] { cursor: progress; }
       return '<div class="pod' + (i === 0 ? ' first' : '') + (x.me ? ' me' : '') + '">' +
         (i === 0 ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"></path></svg>' : '') +
         '<span class="r r' + (i + 1) + '">' + (i + 1) + '위</span><b>' + nameHtml(x.name, x.title) + '</b><span class="pod-t">Lv.' + x.lv + ' · ' + x.title.name + '</span>' + badgeHtml(x.badges).replace('class="badges"', 'class="badges pod-b"') +
-        (season ? '<small class="num ' + cls(x.score) + '">' + signed(x.score) + '원</small>' : '<small class="num ' + cls(x.pnl) + '">' + pnlStr(x.pnl) + '</small>') + (season ? '<span class="pod-t num" style="white-space:nowrap;font-size:11px">순자산 ' + krw(Math.round(x.total / 1e4) * 1e4).replace('원', '') + '</span><span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
+        (season ? '<small class="num ' + cls(x.score) + '">' + pnlStr(x.score) + '</small>' : '<small class="num ' + cls(x.pnl) + '">' + pnlStr(x.pnl) + '</small>') + (season ? '<span class="pod-t num" style="white-space:nowrap;font-size:11px">순자산 ' + krw(Math.round(x.total / 1e4) * 1e4).replace('원', '') + '</span><span class="pod-t">보상 약 ' + krw(Math.round(seasonReward(i) / 1e5) * 1e5).replace('원', '') + '</span>' : '') + '</div>';
     }
     var sName = state.season ? state.season.name : '이번 시즌';
     var html = '<header class="stick rank-head"><div class="topbar"><h1 class="brand">' + (season ? sName + ' 랭킹' : '전체 랭킹') + '</h1>' + dayPill(60) + '</div>' +
@@ -1339,7 +1339,7 @@ body.busy button[data-action] { cursor: progress; }
       html += '<div class="rrow' + (x.me ? ' me' : '') + '"><span class="n">' + x.rank + '</span><span class="who">' + nameHtml(x.name, x.title) +
         '<small>Lv.' + x.lv + ' · ' + x.title.name + '</small>' + badgeHtml(x.badges) + '</span>' +
         (season
-          ? '<span class="end"><b class="num ' + cls(x.score) + '">' + signed(x.score) + '원</b><span class="num" style="color:var(--muted)">순자산 ' + krw(Math.round(x.total / 1e4) * 1e4) + '</span></span>'
+          ? '<span class="end"><b class="num ' + cls(x.score) + '">' + pnlStr(x.score) + '</b><span class="num" style="color:var(--muted)">순자산 ' + krw(Math.round(x.total / 1e4) * 1e4) + '</span></span>'
           : '<span class="end"><b class="num ' + cls(x.pnl) + '">' + pnlStr(x.pnl) + '</b></span>') + '</div>';
     });
     html += '</div>';
@@ -1354,7 +1354,7 @@ body.busy button[data-action] { cursor: progress; }
         html += '<div class="sec-head"><h2>지난 시즌</h2></div><div class="past">';
         past.forEach(function (ps) {
           html += '<div class="past-row"><b>' + esc(ps.name) + '</b><span>' + (ps.results || []).map(function (x) {
-            var v = x.score != null ? '<span class="' + cls(Number(x.score)) + '">' + signed(Number(x.score)) + '원</span>' : '<span class="' + cls(Number(x.ret)) + '">' + pct(Number(x.ret)) + '</span>';
+            var v = x.score != null ? '<span class="' + cls(Number(x.score)) + '">' + pnlStr(Number(x.score)) + '</span>' : '<span class="' + cls(Number(x.ret)) + '">' + pct(Number(x.ret)) + '</span>';
             return '<span class="num">' + x.rank + '위 ' + esc(x.nick) + ' ' + v + '</span>';
           }).join('') + '</span></div>';
         });
@@ -1954,7 +1954,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 7;
+  var APP_VER = 8;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

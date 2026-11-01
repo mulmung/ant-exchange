@@ -570,7 +570,7 @@ body.busy button[data-action] { cursor: progress; }
   function newsItem(n, clickable) {
     var s = stock(n.code), since = n.p ? (s.price / n.p - 1) * 100 : null;
     var inner = '<span class="tag ' + (n.up ? 'up' : 'down') + '">' + (n.up ? '호재' : '악재') + '</span>' +
-      '<span class="news-text"><b>' + n.text + '</b><span>' + s.name + ' · Day ' + (Math.floor(n.tick / DAY_TICKS) + 1) + ' · ' + ago(n.tick) +
+      '<span class="news-text"><b>' + esc(n.text) + '</b><span>' + s.name + ' · Day ' + (Math.floor(n.tick / DAY_TICKS) + 1) + ' · ' + ago(n.tick) +
       (since !== null ? ' · 뉴스 이후 <span class="num ' + cls(since) + '">' + pct(since) + '</span>' : '') + '</span></span>';
     return clickable
       ? '<button class="news" data-action="open" data-code="' + n.code + '" type="button">' + inner + '</button>'
@@ -1465,7 +1465,7 @@ body.busy button[data-action] { cursor: progress; }
       html += '<div class="sec-head"><h2>은행 거래 내역</h2></div><div class="trades">';
       b.log.slice(0, 10).forEach(function (x) {
         var col = x.kind === 'int' ? 'color:var(--gold)' : '';
-        html += '<div class="trade"><span class="what">' + x.text + '</span>' +
+        html += '<div class="trade"><span class="what">' + esc(x.text) + '</span>' +
           (x.amt ? '<b class="num" style="' + col + '">' + (x.amt > 0 ? '+' : '−') + fmt(Math.abs(x.amt)) + '원</b>' : '') +
           '<span class="when">' + ago(x.tick) + '</span></div>';
       });
@@ -1899,14 +1899,27 @@ body.busy button[data-action] { cursor: progress; }
     state.stocks.forEach(function (s, i) { s.hist = lists[i].map(function (x) { return Number(x.price); }); s.histTick = state.tick; });
   }
 
+  // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
+  var APP_VER = 1;
+  function checkVersion(v) {
+    if (!v || v <= APP_VER) return;
+    var key = 'ant-reload-' + v, last = 0;
+    try { last = Number(sessionStorage.getItem(key)) || 0; } catch (e) {}
+    if (Date.now() - last < 180000) return;   // 사이트 반영이 늦어 옛 파일이 다시 오면 3분 뒤에 다시 시도 (무한 새로고침 방지)
+    try { sessionStorage.setItem(key, String(Date.now())); } catch (e) {}
+    toast('새 버전으로 바꾸는 중이에요…');
+    setTimeout(function () { location.replace(location.pathname + '?v=' + v + location.hash); }, 600);
+  }
+
   async function loadMarket() {
     var res = await Promise.all([
-      q(sb.from('game').select('tick,vault,news_seq,updated_at').eq('id', 1).single()),
+      q(sb.from('game').select('tick,vault,news_seq,updated_at,client_ver').eq('id', 1).single()),
       q(sb.from('stocks').select('code,name,sector,vol,price,prev,base,init,div_rate,sort').order('sort')),
       q(sb.from('news_ring').select('seq,code,text,up,tick,price').order('seq', { ascending: false }).limit(150)),
       q(sb.rpc('get_bank_stats'))
     ]);
     var g = res[0], prevTick = state.tick, old = {};
+    checkVersion(g.client_ver);
     (state.stocks || []).forEach(function (s) { old[s.code] = s; });
     state.tick = g.tick;
     gameUpdatedAt = Date.parse(g.updated_at) || Date.now();
@@ -1946,7 +1959,7 @@ body.busy button[data-action] { cursor: progress; }
       q(sb.rpc('get_avg_total')),
       q(sb.rpc('get_people_map')),
       q(sb.from('seasons').select('id,name,start_at,end_at,closed,results').order('id', { ascending: false }).limit(7)),
-      q(sb.rpc('my_notices'))
+      q(sb.rpc('my_notices')).catch(function () { return null; })   // 공지함만 실패해도 나머지는 정상으로
     ]);
     var hold = {};
     res[0].forEach(function (h) { hold[h.code] = { qty: h.qty, cost: Number(h.cost) }; });
@@ -1988,11 +2001,11 @@ body.busy button[data-action] { cursor: progress; }
     var rm = {}; (res[5] || []).forEach(function (x, i) { rm[x.player_id] = i + 1; });   // 채팅 순위 = 시즌 순위
     state.rankMap = rm;
     state.top3Avg = Number(res[7]) || 0;
-    var tn = {}, tid = {}, wn = {}, wi = {}; (res[8] || []).forEach(function (x) { tn[x.nick] = Number(x.pnl); tid[x.player_id] = Number(x.pnl); wn[x.nick] = x.wins; wi[x.player_id] = x.wins; });
-    state.tierByNick = tn; state.tierById = tid; state.winsByNick = wn; state.winsById = wi;
+    var tn = {}, tid = {}, wn = {}, wi = {}, ni = {}; (res[8] || []).forEach(function (x) { tn[x.nick] = Number(x.pnl); tid[x.player_id] = Number(x.pnl); wn[x.nick] = x.wins; wi[x.player_id] = x.wins; ni[x.player_id] = x.nick; });
+    state.tierByNick = tn; state.tierById = tid; state.winsByNick = wn; state.winsById = wi; state.nickById = ni;
     if (typeof chatRepaint === 'function') chatRepaint();
     state.seasons = res[9];
-    state.notices = res[10] || [];
+    if (res[10]) state.notices = res[10]; else if (!state.notices) state.notices = [];
     var cur = res[9].filter(function (x) { return !x.closed; })[0];
     state.season = cur ? { id: cur.id, name: cur.name, start: Date.parse(cur.start_at), end: Date.parse(cur.end_at) } : null;
     state.pastSeasons = res[9].filter(function (x) { return x.closed; });
@@ -2275,7 +2288,7 @@ body.busy button[data-action] { cursor: progress; }
 
   function chatName(m) {
     var t = tierOfId(m.player_id);
-    return rankChip(m.player_id) + starHtml(state.winsById ? state.winsById[m.player_id] : 0) + '<b style="color:' + t.color + '">' + esc(m.nick || '') + '</b>';
+    return rankChip(m.player_id) + starHtml(state.winsById ? state.winsById[m.player_id] : 0) + '<b style="color:' + t.color + '">' + esc((state.nickById && state.nickById[m.player_id]) || m.nick || '') + '</b>';   // 닉네임을 바꿔도 예전 채팅에 지금 이름이 보이게
   }
   function chatTime(iso) { var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
   function chatShow(on) { chatEl.hidden = !on || !booted; if (chatEl.hidden && chatOpen) chatSetOpen(false); }

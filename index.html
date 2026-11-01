@@ -427,6 +427,12 @@ body.busy button[data-action] { cursor: progress; }
 .nt-btns button.warn { background: var(--up-btn); color: #FFF; }
 .nt-confirm { border: 1px solid #5A2A30; background: var(--up-tint); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
 .adm-seg button.on { background: var(--surface-2); color: var(--fg); }
+.nt-who { display: flex; flex-direction: column; gap: 8px; }
+.nt-who-h { display: flex; justify-content: space-between; align-items: center; }
+.nt-who-h b { font-size: 12px; color: var(--soft); }
+.nt-who-l { display: flex; flex-wrap: wrap; gap: 6px; }
+.nt-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); font-size: 13px !important; color: var(--fg) !important; }
+.nt-chip.off { background: var(--bg); color: var(--muted) !important; text-decoration: line-through; }
 .sent-meta { font-size: 12px; color: var(--muted); line-height: 1.6; }
 </style>
 </head>
@@ -1179,6 +1185,12 @@ body.busy button[data-action] { cursor: progress; }
   });
   document.addEventListener('change', function (e) {
     if (e.target.id === 'nt-chat' && ui.compose) ui.compose.chat = e.target.checked;
+    if (e.target.dataset && e.target.dataset.ex && ui.compose) {
+      if (!ui.compose.exclude) ui.compose.exclude = {};
+      ui.compose.exclude[e.target.dataset.ex] = !e.target.checked;
+      e.target.parentNode.classList.toggle('off', !e.target.checked);
+      var wn = document.getElementById('nt-who-n'); if (wn) wn.textContent = recipientsCount() + ' / ' + (state.ranking || []).filter(function (x) { return x.player_id; }).length + '명';
+    }
     if (e.target.id !== 'qty-input') return;
     if (ui.qty < 1) { ui.qty = 1; e.target.value = '1'; updateSheet(); }
   });
@@ -1545,7 +1557,8 @@ body.busy button[data-action] { cursor: progress; }
       var open = ui.mailOpen === x.id;
       var rw = '';
       if (Number(x.reward) > 0) {
-        if (!x.eligible) rw = '<span class="rw off">🎁 ' + krw(Number(x.reward)) + ' · 가입 전 공지</span>';
+        if (x.excluded) rw = '<span class="rw off">🎁 보상 대상이 아니에요</span>';
+        else if (!x.eligible) rw = '<span class="rw off">🎁 ' + krw(Number(x.reward)) + ' · 가입 전 공지</span>';
         else if (x.claimed) rw = '<span class="rw off">🎁 ' + krw(Number(x.reward)) + ' · 받음 ✓</span>';
         else rw = '<span class="rw">🎁 ' + krw(Number(x.reward)) + '</span>';
       } else rw = '<span class="rw off">보상 없음</span>';
@@ -1661,9 +1674,10 @@ body.busy button[data-action] { cursor: progress; }
       '<label for="nt-reward">보상 (원 · 비우면 보상 없음 · 최대 10억)' + (editing ? ' · 보낸 뒤에는 바꿀 수 없어요' : '') + '</label>' +
       '<input id="nt-reward" type="text" inputmode="numeric" autocomplete="off" value="' + (c.reward ? c.reward : '') + '" placeholder="0"' + (editing ? ' disabled' : '') + '>' +
       '<span class="label" id="nt-reward-pv" style="font-size:12px">' + (c.reward ? krw(c.reward) : '') + '</span>' +
-      (editing ? '' : '<label class="nt-row"><input id="nt-chat" type="checkbox"' + (c.chat ? ' checked' : '') + '> 전체 채팅에도 "📢 새 공지" 알리기</label>');
+      (editing ? '' : '<label class="nt-row"><input id="nt-chat" type="checkbox"' + (c.chat ? ' checked' : '') + '> 전체 채팅에도 "📢 새 공지" 알리기</label>') +
+      (editing ? '' : recipientsHtml());
     if (c.confirm) {
-      h += '<div class="nt-confirm"><b>정말 모든 유저에게 ' + krw(c.reward) + '씩 보상을 보낼까요?</b><span>지금 가입한 ' + (state.ranking ? state.ranking.length : '') + '명이 받을 수 있어요. 보낸 뒤에는 금액을 바꿀 수 없어요.</span>' +
+      h += '<div class="nt-confirm"><b>정말 ' + recipientsCount() + '명에게 ' + krw(c.reward) + '씩 보상을 보낼까요? (최대 ' + krw(c.reward * recipientsCount()) + ')</b><span>보낸 뒤에는 금액과 받는 사람을 바꿀 수 없어요.</span>' +
         '<div class="nt-btns"><button data-action="admin-send-no" type="button">취소</button><button class="warn" data-action="admin-send-yes" type="button">보내기</button></div></div>';
     } else {
       h += '<div class="nt-btns">' + (editing ? '<button data-action="admin-edit-cancel" type="button">수정 취소</button>' : '') +
@@ -1677,6 +1691,19 @@ body.busy button[data-action] { cursor: progress; }
         '<div class="ml-body">' + esc(c.body || '') + '</div><div class="ml-foot">' + (r ? '<span class="rw">🎁 ' + krw(r) + '</span><span class="bt"><button class="claim" type="button" disabled>받기</button></span>' : '<span class="rw off">보상 없음</span>') + '</div></article>';
     }
     return h;
+  }
+  // 보상 받는 사람: 체크를 끄면 그 사람은 공지는 보여도 보상은 못 받아요 (서버가 막음)
+  function recipientsHtml() {
+    var ex = ui.compose.exclude || {}, ppl = (state.ranking || []).filter(function (x) { return x.player_id; });
+    var n = ppl.filter(function (x) { return !ex[x.player_id]; }).length;
+    return '<div class="nt-who"><div class="nt-who-h"><label>보상 받는 사람 (체크를 끄면 보상 제외)</label><b id="nt-who-n">' + n + ' / ' + ppl.length + '명</b></div><div class="nt-who-l">' +
+      ppl.map(function (x) {
+        return '<label class="nt-chip' + (ex[x.player_id] ? ' off' : '') + '"><input type="checkbox" data-ex="' + x.player_id + '"' + (ex[x.player_id] ? '' : ' checked') + '> ' + esc(x.nick) + '</label>';
+      }).join('') + '</div></div>';
+  }
+  function recipientsCount() {
+    var ex = ui.compose.exclude || {}, ppl = (state.ranking || []).filter(function (x) { return x.player_id; });
+    return ppl.filter(function (x) { return !ex[x.player_id]; }).length;
   }
   function sentHtml() {
     var list = state.adminNotices;
@@ -1693,11 +1720,11 @@ body.busy button[data-action] { cursor: progress; }
       return '<article class="al"><div class="al-top"><i class="dot2' + (live ? '' : ' off') + '" style="' + (live ? 'background:var(--live)' : '') + '"></i><time>' + kstTime(n.at) + '</time><b>' + esc(n.title) + '</b>' +
         '<span class="tag ' + (live ? 'up' : 'none') + '" style="' + (live ? 'background:#173A2A;color:var(--live)' : '') + '">' + st + '</span></div>' +
         '<div class="al-detail" style="white-space:pre-wrap">' + esc(n.body || '') + '</div>' +
-        '<div class="sent-meta">읽음 ' + n.reads + '명 · ' + (Number(n.reward) ? '보상 ' + krw(Number(n.reward)) + ' · 받은 사람 ' + n.claims + ' / ' + n.players + '명 · 지급 합계 ' + krw(Number(n.paid)) : '보상 없음') + (n.edited ? ' · 수정됨' : '') + '</div>' +
+        '<div class="sent-meta">읽음 ' + n.reads + '명 · ' + (Number(n.reward) ? '보상 ' + krw(Number(n.reward)) + ' · 받은 사람 ' + n.claims + ' / ' + n.players + '명 · 지급 합계 ' + krw(Number(n.paid)) + (n.excluded && n.excluded.length ? ' · 제외: ' + n.excluded.map(esc).join(', ') : '') : '보상 없음') + (n.edited ? ' · 수정됨' : '') + '</div>' +
         (btns ? '<div class="al-btns" style="align-items:center">' + btns + '</div>' : '') + '</article>';
     }).join('') + '</div>';
   }
-  function blankCompose() { return { title: '', body: '', reward: 0, chat: true, edit: null, preview: false, confirm: false }; }
+  function blankCompose() { return { title: '', body: '', reward: 0, chat: true, edit: null, preview: false, confirm: false, exclude: {} }; }
   async function sendNotice() {
     var c = ui.compose;
     if (!c.title.trim()) { toast('제목을 써주세요'); return; }
@@ -1705,7 +1732,8 @@ body.busy button[data-action] { cursor: progress; }
       var re = await call('admin_notice_edit', { p_id: c.edit, p_title: c.title, p_body: c.body }); if (!re) return;
       toast('공지를 수정했어요'); ui.compose = blankCompose(); ui.adminTab = 'sent'; state.adminNotices = null; render(); await loadAdmin(); await loadNotices(); render(); return;
     }
-    var r = await call('admin_notice_send', { p_title: c.title, p_body: c.body, p_reward: c.reward || 0, p_chat: c.chat }); if (!r) return;
+    var exIds = Object.keys(c.exclude || {}).filter(function (k) { return c.exclude[k]; });
+    var r = await call('admin_notice_send2', { p_title: c.title, p_body: c.body, p_reward: c.reward || 0, p_chat: c.chat, p_exclude: exIds }); if (!r) return;
     toast('공지를 보냈어요'); ui.compose = blankCompose(); ui.adminTab = 'sent'; state.adminNotices = null; render(); await loadAdmin(); await loadNotices(); render();
   }
   async function adminAction(a, k, t) {
@@ -1721,7 +1749,7 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'admin-edit-cancel') { ui.compose = blankCompose(); render(); return; }
     if (a === 'admin-nedit') {
       var n = (state.adminNotices || []).filter(function (x) { return x.id === Number(k); })[0]; if (!n) return;
-      ui.compose = { title: n.title, body: n.body || '', reward: Number(n.reward), chat: false, edit: n.id, preview: false, confirm: false };
+      ui.compose = { title: n.title, body: n.body || '', reward: Number(n.reward), chat: false, edit: n.id, preview: false, confirm: false, exclude: {} };
       ui.adminTab = 'write'; render(); document.body.scrollTo(0, 0); return;
     }
     if (a === 'admin-nremove') { ui.removeAsk = Number(k); render(); return; }
@@ -1922,7 +1950,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 4;
+  var APP_VER = 5;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

@@ -163,7 +163,11 @@ body.busy button[data-action] { cursor: progress; }
 .cm time { margin-left: 6px; font-size: 11px; color: var(--muted); }
 .cm.me { background: var(--bg); border-radius: 10px; padding: 6px 10px; margin: 0 -10px; }
 .chat-tools { display: flex; justify-content: flex-end; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 0; }
-.chat-news-tg { border: 0; background: var(--bg); color: var(--soft); font-size: 12px; font-weight: 600; border-radius: 999px; padding: 6px 12px; min-height: 30px; }
+/* 뉴스 보기 버튼: 켜짐 = 신문 아이콘, 꺼짐 = 흐린 아이콘 + 대각선 */
+.chat-news-tg { width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--bg); color: var(--fg); display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.chat-news-tg .slash { display: none; }
+.chat-news-tg.off { color: var(--muted); }
+.chat-news-tg.off .slash { display: inline; stroke: var(--soft); stroke-width: 2.2; }
 .cm.news { display: block; width: 100%; border: 0; background: var(--bg); border-radius: 10px; padding: 6px 10px; margin: 0 -10px; width: calc(100% + 20px); text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
 .cm.news.up { color: var(--up); } .cm.news.down { color: var(--down); }
 .cm.news b { margin-right: 4px; }
@@ -473,7 +477,7 @@ body.busy button[data-action] { cursor: progress; }
     <svg class="chat-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>
   </button>
   <div class="chat-panel" id="chat-panel" hidden>
-    <div class="chat-tools"><button class="chat-news-tg" id="chat-news-tg" type="button" aria-pressed="true">📰 뉴스 숨기기</button></div>
+    <div class="chat-tools"><button class="chat-news-tg" id="chat-news-tg" type="button" aria-pressed="true" aria-label="뉴스 숨기기" title="뉴스 숨기기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h12v13a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z"></path><path d="M16 9h4v9a2 2 0 0 1-4 0"></path><path d="M7 9h6M7 12h6M7 15h4"></path><path class="slash" d="M3 3l18 18"></path></svg></button></div>
     <div class="chat-list" id="chat-list" aria-live="polite"></div>
     <form class="chat-form" id="chat-form" autocomplete="off">
       <label for="chat-input" class="sr">채팅 입력</label>
@@ -1918,7 +1922,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 3;
+  var APP_VER = 4;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
@@ -2375,7 +2379,11 @@ body.busy button[data-action] { cursor: progress; }
   }
   chatBar.addEventListener('click', function () { chatSetOpen(!chatOpen); });
   var chatNewsTg = document.getElementById('chat-news-tg');
-  function chatNewsPaint() { chatNewsTg.textContent = chatNewsOn ? '📰 뉴스 숨기기' : '📰 뉴스 보기'; chatNewsTg.setAttribute('aria-pressed', String(chatNewsOn)); }
+  function chatNewsPaint() {
+    var lb = chatNewsOn ? '뉴스 숨기기' : '뉴스 보기';
+    chatNewsTg.classList.toggle('off', !chatNewsOn);
+    chatNewsTg.setAttribute('aria-pressed', String(chatNewsOn)); chatNewsTg.setAttribute('aria-label', lb); chatNewsTg.title = lb;
+  }
   chatNewsTg.addEventListener('click', function (e) {
     e.stopPropagation(); chatNewsOn = !chatNewsOn;
     try { localStorage.setItem('ant-chat-news', chatNewsOn ? '1' : '0'); } catch (err) {}

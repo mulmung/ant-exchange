@@ -635,14 +635,49 @@ body.busy button[data-action] { cursor: progress; }
     { name: '레드칩', min: 100000000000, steps: [100000000000, 140000000000, 180000000000, 220000000000, 260000000000], color: '#F0525A' },
     { name: '황제주', min: 300000000000, steps: null, color: '#F2C94C' }
   ];
+  // 티어 보상 (서버 claim_tier_reward 와 같은 표). 5 = 등급 진입 보상, 4~1 = 그 단계 기준 금액의 5% (잡주는 기존 금액)
+  // 키(c4 …)는 금액 기준선에 묶여 있어서 이미 받은 보상은 그대로 인정돼요
   var TIER_REWARDS = [
-    // 키(c4 …)는 금액 기준선에 묶여 있어서, 이름이 바뀌어도 이미 받은 보상은 그대로 인정돼요
-    { key: 'c4', name: '잡주 4', need: 20000000, amt: 1000000 }, { key: 'c3', name: '잡주 3', need: 40000000, amt: 2000000 },
-    { key: 'c2', name: '잡주 2', need: 60000000, amt: 3000000 }, { key: 'c1', name: '잡주 1', need: 80000000, amt: 5000000 },
-    { key: 'jj', name: '동전주', need: 100000000, amt: 30000000 }, { key: 'tm', name: '지폐주', need: 300000000, amt: 100000000 },
-    { key: 'wr', name: '테마주', need: 1000000000, amt: 300000000 }, { key: 'dh', name: '우량주', need: 3000000000, amt: 1000000000 },
-    { key: 'bc', name: '대형주', need: 10000000000, amt: 3000000000 }, { key: 'ej', name: '블루칩', need: 30000000000, amt: 10000000000 },
-    { key: 'rc', name: '레드칩', need: 100000000000, amt: 30000000000 }, { key: 'em', name: '황제주', need: 300000000000, amt: 100000000000 }
+    { key: 'c4', name: '잡주 4', need: 20000000, amt: 1000000 },
+    { key: 'c3', name: '잡주 3', need: 40000000, amt: 2000000 },
+    { key: 'c2', name: '잡주 2', need: 60000000, amt: 3000000 },
+    { key: 'c1', name: '잡주 1', need: 80000000, amt: 5000000 },
+    { key: 'jj', name: '동전주 5', need: 100000000, amt: 30000000 },
+    { key: 'd4', name: '동전주 4', need: 140000000, amt: 7000000 },
+    { key: 'd3', name: '동전주 3', need: 180000000, amt: 9000000 },
+    { key: 'd2', name: '동전주 2', need: 220000000, amt: 11000000 },
+    { key: 'd1', name: '동전주 1', need: 260000000, amt: 13000000 },
+    { key: 'tm', name: '지폐주 5', need: 300000000, amt: 100000000 },
+    { key: 'p4', name: '지폐주 4', need: 440000000, amt: 22000000 },
+    { key: 'p3', name: '지폐주 3', need: 580000000, amt: 29000000 },
+    { key: 'p2', name: '지폐주 2', need: 720000000, amt: 36000000 },
+    { key: 'p1', name: '지폐주 1', need: 860000000, amt: 43000000 },
+    { key: 'wr', name: '테마주 5', need: 1000000000, amt: 300000000 },
+    { key: 't4', name: '테마주 4', need: 1400000000, amt: 70000000 },
+    { key: 't3', name: '테마주 3', need: 1800000000, amt: 90000000 },
+    { key: 't2', name: '테마주 2', need: 2200000000, amt: 110000000 },
+    { key: 't1', name: '테마주 1', need: 2600000000, amt: 130000000 },
+    { key: 'dh', name: '우량주 5', need: 3000000000, amt: 1000000000 },
+    { key: 'w4', name: '우량주 4', need: 4400000000, amt: 220000000 },
+    { key: 'w3', name: '우량주 3', need: 5800000000, amt: 290000000 },
+    { key: 'w2', name: '우량주 2', need: 7200000000, amt: 360000000 },
+    { key: 'w1', name: '우량주 1', need: 8600000000, amt: 430000000 },
+    { key: 'bc', name: '대형주 5', need: 10000000000, amt: 3000000000 },
+    { key: 'g4', name: '대형주 4', need: 14000000000, amt: 700000000 },
+    { key: 'g3', name: '대형주 3', need: 18000000000, amt: 900000000 },
+    { key: 'g2', name: '대형주 2', need: 22000000000, amt: 1100000000 },
+    { key: 'g1', name: '대형주 1', need: 26000000000, amt: 1300000000 },
+    { key: 'ej', name: '블루칩 5', need: 30000000000, amt: 10000000000 },
+    { key: 'b4', name: '블루칩 4', need: 44000000000, amt: 2200000000 },
+    { key: 'b3', name: '블루칩 3', need: 58000000000, amt: 2900000000 },
+    { key: 'b2', name: '블루칩 2', need: 72000000000, amt: 3600000000 },
+    { key: 'b1', name: '블루칩 1', need: 86000000000, amt: 4300000000 },
+    { key: 'rc', name: '레드칩 5', need: 100000000000, amt: 30000000000 },
+    { key: 'r4', name: '레드칩 4', need: 140000000000, amt: 7000000000 },
+    { key: 'r3', name: '레드칩 3', need: 180000000000, amt: 9000000000 },
+    { key: 'r2', name: '레드칩 2', need: 220000000000, amt: 11000000000 },
+    { key: 'r1', name: '레드칩 1', need: 260000000000, amt: 13000000000 },
+    { key: 'em', name: '황제주', need: 300000000000, amt: 100000000000 }
   ];
   // 티어 계산: { name: '잡주 5', tier, div, color, next(다음 단계 금액) }
   function tierOf(pnl) {
@@ -751,14 +786,17 @@ body.busy button[data-action] { cursor: progress; }
       return '<div class="tl-row' + (on ? ' on' : '') + '" style="' + (on ? 'border-color:' + T.color : '') + '"><b style="color:' + T.color + '">' + T.name + (T.steps ? ' 5~1' : '') + '</b><span class="num">' + range + '</span>' + (on ? '<span class="tag gold">지금</span>' : '') + '</div>';
     }).join('') + '</div>';
     html += '<div class="sec-head"><h2>티어 보상</h2><span class="label">처음 도달할 때 한 번</span></div><div class="ach-list">';
+    var curIdx = tierOf(best).idx, hidden = 0;
     TIER_REWARDS.forEach(function (r) {
-      var got = p.ach['tier_' + r.key], open = best >= r.need, col = tierOf(r.need).color;
+      var got = p.ach['tier_' + r.key], open = best >= r.need, col = tierOf(r.need).color, ri = tierOf(r.need).idx;
+      if (!ui.allTierRw && !(ri === curIdx || ri === curIdx + 1 || (open && !got))) { hidden++; return; }
       html += '<div class="ach' + (got ? ' done' : '') + '"><span class="ach-t"><b style="color:' + (open ? col : 'var(--soft)') + '">' + r.name + '</b><span>주식으로 번 돈 ' + krw(r.need) + ' 달성</span></span>' +
         (got ? '<span class="num ach-xp">' + krw(r.amt) + ' 받음</span>'
           : open ? '<button class="treward claim tier-claim" data-action="claim-tier" data-key="' + r.key + '" type="button">' + krw(r.amt) + ' 받기</button>'
           : '<span class="num ach-xp">' + krw(r.amt) + '</span>') + '</div>';
     });
     html += '</div>';
+    if (hidden || ui.allTierRw) html += '<button class="link" data-action="tier-rw-all" type="button" style="align-self:center">' + (ui.allTierRw ? '지금 등급 보상만 보기' : '전체 보상 보기 (' + hidden + '개 더)') + '</button>';
 
     var cA = html.length;
     var doneN = ACH.filter(function (a) { return p.ach[a.id]; }).length;
@@ -1857,6 +1895,7 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'bank-tab') { ui.bankTab = k; ui.cancel = null; render(); return; }
     if (a === 'prof-tab') { ui.profTab = k; render(); return; }
     if (a === 'ach-tab') { ui.achTab = k; render(); return; }
+    if (a === 'tier-rw-all') { ui.allTierRw = !ui.allTierRw; render(); return; }
     if (a === 'nick-save') { saveNick(); return; }
     if (a === 'claim-tier') {
       call('claim_tier_reward', { p_key: k }).then(function (r) {
@@ -1954,7 +1993,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 8;
+  var APP_VER = 9;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

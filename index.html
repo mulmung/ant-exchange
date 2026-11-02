@@ -334,6 +334,11 @@ body.busy button[data-action] { cursor: progress; }
 .sum { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .cta { min-height: 54px; border: 0; border-radius: 14px; color: #FFFFFF; font-size: 17px; font-weight: 700; }
 .cta.buy { background: var(--up-btn); } .cta.sell { background: var(--down-btn); }
+.seg .short.on, .seg .cover.on { background: #7A5CE0; color: #FFFFFF; }
+.cta.short, .cta.cover { background: #7A5CE0; }
+.tag.short { background: rgba(122,92,224,.22); color: #B9A6FF; }
+.sh-note { margin: 0; font-size: 12px; color: var(--soft); line-height: 1.5; }
+.neg-cash { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--up-tint); color: var(--up); font-size: 13px; line-height: 1.5; }
 .cta:disabled { background: var(--line); color: var(--muted); cursor: not-allowed; }
 
 /* portfolio */
@@ -544,7 +549,16 @@ body.busy button[data-action] { cursor: progress; }
   function holdValue(hold) {
     var v = 0; for (var c in hold) { var s = stock(c); if (s) v += s.price * (typeof hold[c] === 'number' ? hold[c] : hold[c].qty); } return v;
   }
-  function grossAssets() { return state.cash + holdValue(state.hold) + bankPrincipal(); }
+  // 공매도 포지션 가치 = 낸 돈 + 손익 = 2 × 진입 금액 − 수량 × 현재가
+  function shortValue() {
+    var v = 0, sh = state.shorts || {}; for (var c in sh) { var s = stock(c); if (s) v += 2 * sh[c].cost - s.price * sh[c].qty; } return v;
+  }
+  function shortPnl() {
+    var v = 0, sh = state.shorts || {}; for (var c in sh) { var s = stock(c); if (s) v += sh[c].cost - s.price * sh[c].qty; } return v;
+  }
+  var SHORT_MIN = 300000000;   // 공매도: 지폐주(주식 수익 3억)부터
+  function canShort() { return (state.prof && state.prof.pnl || 0) >= SHORT_MIN; }
+  function grossAssets() { return state.cash + holdValue(state.hold) + bankPrincipal() + shortValue(); }
   function myTotal() { return grossAssets() - (state.bank.loan || 0); }
 
   function dps(s) { return Math.floor(s.price * rate(s) / 100 / 5) * 5; }
@@ -1152,7 +1166,11 @@ body.busy button[data-action] { cursor: progress; }
     html += '<div class="sec-head"><h2>' + s.name + ' 뉴스</h2>' + (sns.length > 3 ? '<button class="link" data-action="nav" data-view="news" data-key="' + s.code + '" type="button">전체 ' + sns.length + '건</button>' : '') + '</div>';
     if (sns.length) html += '<div class="news-list">' + sns.slice(0, 3).map(function (n) { return newsItem(n, false); }).join('') + '</div>';
     else html += '<div class="empty" style="padding:18px 16px">아직 이 종목 뉴스가 없어요.</div>';
-    if (h) {
+    var shp = state.shorts && state.shorts[s.code];
+    if (shp) {
+      var sav = shp.cost / shp.qty, sr = (1 - s.price / sav) * 100;
+      html += '<div class="stats"><div><span>공매도</span><b>' + fmt(shp.qty) + '주</b></div><div><span>진입가</span><b class="num">' + fmt(sav) + '</b></div><div><span>수익률</span><b class="num ' + cls(sr) + '">' + pct(sr) + '</b></div></div>';
+    } else if (h) {
       var avg = h.cost / h.qty, r = (s.price / avg - 1) * 100;
       html += '<div class="stats"><div><span>보유</span><b>' + h.qty + '주</b></div><div><span>평균 단가</span><b class="num">' + fmt(avg) + '</b></div><div><span>수익률</span><b class="num ' + cls(r) + '">' + pct(r) + '</b></div></div>';
     } else {
@@ -1163,7 +1181,7 @@ body.busy button[data-action] { cursor: progress; }
       '<span class="tag ' + (rate(s) ? 'gold' : 'none') + '">' + (rate(s) ? '배당률 ' + rate(s).toFixed(1) + '%' : '무배당') + '</span></div>';
     if (rate(s)) {
       html += '<div class="kv"><span class="label">1주당 예상 배당</span><b class="num">' + fmt(d) + '원</b></div>' +
-        '<div class="kv"><span class="label">내 예상 배당</span><b class="num">' + (h ? fmt(d * h.qty) + '원 (' + h.qty + '주)' : '보유하면 받아요') + '</b></div>' +
+        '<div class="kv"><span class="label">내 예상 배당</span><b class="num' + (shp ? ' up' : '') + '">' + (shp ? '−' + fmt(d * shp.qty) + '원 (공매도라 내요)' : h ? fmt(d * h.qty) + '원 (' + h.qty + '주)' : '보유하면 받아요') + '</b></div>' +
         '<div class="kv"><span class="label">다음 지급</span><b class="num">' + untilPayout() + ' 후 · Day ' + day() + ' 마감</b></div>' +
         '<p class="note">지급 직후 주가가 1주당 배당금만큼 빠져요(배당락). 이후 서서히 회복해요.</p>';
     } else {
@@ -1175,25 +1193,49 @@ body.busy button[data-action] { cursor: progress; }
 
   // 거래세: 매수 0.1%, 매도 0.2% (1원 미만 올림) → 은행으로
   var TAX_BUY = 0.001, TAX_SELL = 0.002;
-  function taxOf(amt, side) { return Math.ceil(amt * (side === 'buy' ? TAX_BUY : TAX_SELL) - 1e-9); }
+  function taxOf(amt, side) { return Math.ceil(amt * (side === 'buy' || side === 'cover' ? TAX_BUY : TAX_SELL) - 1e-9); }
+  var SHORT_FEE = 0.002;   // 대차 수수료: 게임 하루 0.2% (현재가 기준)
+  // 이 종목에서 고를 수 있는 주문: 공매도 중이면 [공매도][상환], 보유 중이면 [매수][매도], 아니면 셋 다
+  function sideList(s) {
+    var sh = state.shorts && state.shorts[s.code];
+    if (sh && sh.qty > 0) return ['short', 'cover'];
+    if (state.hold[s.code]) return ['buy', 'sell'];
+    return ['buy', 'sell', 'short'];
+  }
+  var SIDE_NAME = { buy: '매수', sell: '매도', short: '공매도', cover: '상환' };
   function maxQty(s) {
-    if (ui.side !== 'buy') return state.hold[s.code] ? state.hold[s.code].qty : 0;
-    var q = Math.floor(state.cash / (s.price * (1 + TAX_BUY)));
-    while (q > 0 && s.price * q + taxOf(s.price * q, 'buy') > state.cash) q--;
+    var side = ui.side;
+    if (side === 'sell') return state.hold[s.code] ? state.hold[s.code].qty : 0;
+    if (side === 'cover') return state.shorts && state.shorts[s.code] ? state.shorts[s.code].qty : 0;
+    if (side === 'short' && !canShort()) return 0;
+    var tx = side === 'short' ? TAX_SELL : TAX_BUY;
+    var q = Math.max(0, Math.floor(state.cash / (s.price * (1 + tx))));
+    while (q > 0 && s.price * q + taxOf(s.price * q, side) > state.cash) q--;
     return q;
   }
 
   function sheetParts(s) {
-    var mx = maxQty(s), buy = ui.side === 'buy', q = ui.qty;
+    var side = ui.side, mx = maxQty(s), q = ui.qty, pay = side === 'buy' || side === 'short';
     var label, ok = false;
-    if (mx < 1) label = buy ? '현금이 부족해요' : '보유한 주식이 없어요';
+    if (side === 'short' && !canShort()) label = '공매도는 지폐주부터 할 수 있어요';
+    else if (mx < 1) label = pay ? '현금이 부족해요' : side === 'cover' ? '상환할 공매도가 없어요' : '보유한 주식이 없어요';
     else if (q < 1) label = '수량을 입력해주세요';
-    else if (q > mx) label = (buy ? '현금이 부족해요' : '보유 수량보다 많아요') + ' · 최대 ' + fmt(mx) + '주';
-    else { label = fmt(q) + '주 ' + (buy ? '매수하기' : '매도하기'); ok = true; }
-    var amtN = s.price * Math.max(q, 0), taxN = taxOf(amtN, ui.side);
+    else if (q > mx) label = (pay ? '현금이 부족해요' : side === 'cover' ? '공매도 수량보다 많아요' : '보유 수량보다 많아요') + ' · 최대 ' + fmt(mx) + '주';
+    else { label = fmt(q) + '주 ' + SIDE_NAME[side] + '하기'; ok = true; }
+    var qq = Math.max(q, 0), amtN = s.price * qq, taxN = taxOf(amtN, side), totalN, pnlN = null, avail;
+    if (side === 'cover') {
+      var sh = state.shorts[s.code], av = sh ? sh.cost / sh.qty : 0;
+      pnlN = (av - s.price) * qq;
+      totalN = av * qq + pnlN - taxN;
+      avail = sh ? fmt(sh.qty) + '주 · 진입가 ' + fmt(av) + '원' : '0주';
+    } else {
+      totalN = pay ? amtN + taxN : amtN - taxN;
+      avail = pay ? fmt(state.cash) + '원 · 최대 ' + fmt(mx) + '주' : fmt(mx) + '주';
+    }
     return { mx: mx, ok: ok, label: label, over: q > mx,
-      amt: fmt(amtN) + '원', tax: fmt(taxN) + '원', total: fmt(buy ? amtN + taxN : amtN - taxN) + '원',
-      avail: buy ? fmt(state.cash) + '원 · 최대 ' + fmt(mx) + '주' : fmt(mx) + '주' };
+      amt: fmt(amtN) + '원', tax: fmt(taxN) + '원', total: (totalN < 0 ? '−' + fmt(-totalN) : fmt(totalN)) + '원',
+      pnl: pnlN == null ? '' : signed(pnlN) + '원', pnlCls: pnlN == null ? '' : cls(pnlN), fee: fmt(Math.ceil(amtN * SHORT_FEE)) + '원 / 하루',
+      avail: avail };
   }
 
   function updateSheet() {
@@ -1205,6 +1247,8 @@ body.busy button[data-action] { cursor: progress; }
     if (tx) tx.textContent = p.tax;
     if (tt) { tt.textContent = p.total; tt.classList.toggle('warn', p.over); }
     if (v) v.textContent = p.avail;
+    var pn = document.getElementById('sum-pnl'); if (pn) { pn.textContent = p.pnl; pn.className = 'num ' + p.pnlCls; }
+    var fe = document.getElementById('sum-fee'); if (fe) fe.textContent = p.fee;
     if (c) { c.textContent = p.label; c.disabled = !p.ok; }
   }
 
@@ -1213,22 +1257,30 @@ body.busy button[data-action] { cursor: progress; }
     if (ui.view !== 'detail') { sheet.hidden = true; sheet.innerHTML = ''; return; }
     var inp = document.getElementById('qty-input');
     if (inp && document.activeElement === inp && !sheet.hidden) { updateSheet(); return; }
-    var s = stock(ui.sel), p = sheetParts(s);
-    var buy = ui.side === 'buy';
+    var s = stock(ui.sel), sides = sideList(s);
+    if (sides.indexOf(ui.side) < 0) { ui.side = sides[0]; ui.qty = 1; ui.qtyPct = null; }
+    var side = ui.side, buy = side === 'buy', p = sheetParts(s);
+    var taxLbl = { buy: '매수 0.1%', sell: '매도 0.2%', short: '공매도 0.2%', cover: '상환 0.1%' }[side];
+    var totLbl = { buy: '총 결제 금액', sell: '받을 금액', short: '총 결제 금액 (공매도 대금)', cover: '돌려받을 금액' }[side];
+    var avLbl = { buy: '주문 가능 현금', sell: '매도 가능 수량', short: '주문 가능 현금', cover: '공매도 중' }[side];
     sheet.hidden = false;
     sheet.innerHTML = '<section class="sheet-in" aria-label="주문">' +
-      '<div class="seg" role="group" aria-label="주문 종류"><button class="buy' + (buy ? ' on' : '') + '" data-action="side" data-key="buy" type="button" aria-pressed="' + buy + '">매수</button>' +
-      '<button class="sell' + (!buy ? ' on' : '') + '" data-action="side" data-key="sell" type="button" aria-pressed="' + !buy + '">매도</button></div>' +
+      '<div class="seg" role="group" aria-label="주문 종류">' + sides.map(function (k) {
+        return '<button class="' + k + (side === k ? ' on' : '') + '" data-action="side" data-key="' + k + '" type="button" aria-pressed="' + (side === k) + '">' + SIDE_NAME[k] + '</button>';
+      }).join('') + '</div>' +
+      (side === 'short' ? '<p class="sh-note">주가가 <b>떨어지면 이익</b>, 오르면 손실이에요. 낸 돈 + (진입가 − 상환가) × 수량을 상환할 때 돌려받아요. 손실이 낸 돈보다 크면 현금이 마이너스가 될 수 있어요.</p>' : '') +
       '<div class="split"><span style="color:var(--soft)">수량</span><div class="stepper">' +
       '<button data-action="qty" data-key="-1" type="button" aria-label="수량 줄이기">−</button>' +
       '<label class="qty-box"><input id="qty-input" class="num" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="주문 수량" value="' + (ui.qty > 0 ? ui.qty : '') + '" placeholder="0"><span>주</span></label>' +
       '<button data-action="qty" data-key="1" type="button" aria-label="수량 늘리기">+</button></div></div>' +
       pctChips('qty-pct', null, ui.qtyPct) +
       '<div class="sum"><div class="split"><span class="label">주문 금액</span><span class="num" id="sum-amt">' + p.amt + '</span></div>' +
-      '<div class="split"><span class="label">거래세 (' + (buy ? '매수 0.1%' : '매도 0.2%') + ' · 은행으로)</span><span class="num" id="sum-tax">' + p.tax + '</span></div>' +
-      '<div class="split"><span class="label">' + (buy ? '총 결제 금액' : '받을 금액') + '</span><b class="num' + (p.over ? ' warn' : '') + '" id="sum-total">' + p.total + '</b></div>' +
-      '<div class="split"><span class="label">' + (buy ? '주문 가능 현금' : '매도 가능 수량') + '</span><span class="num" id="sum-avail">' + p.avail + '</span></div></div>' +
-      '<button class="cta ' + ui.side + '" id="cta" data-action="order" type="button"' + (p.ok ? '' : ' disabled') + '>' + p.label + '</button></section>';
+      '<div class="split"><span class="label">거래세 (' + taxLbl + ' · 은행으로)</span><span class="num" id="sum-tax">' + p.tax + '</span></div>' +
+      (side === 'cover' ? '<div class="split"><span class="label">예상 손익</span><b class="num ' + p.pnlCls + '" id="sum-pnl">' + p.pnl + '</b></div>' : '') +
+      '<div class="split"><span class="label">' + totLbl + '</span><b class="num' + (p.over ? ' warn' : '') + '" id="sum-total">' + p.total + '</b></div>' +
+      (side === 'short' ? '<div class="split"><span class="label">대차 수수료 (하루 0.2%)</span><span class="num" id="sum-fee">' + p.fee + '</span></div>' : '') +
+      '<div class="split"><span class="label">' + avLbl + '</span><span class="num" id="sum-avail">' + p.avail + '</span></div></div>' +
+      '<button class="cta ' + side + '" id="cta" data-action="order" type="button"' + (p.ok ? '' : ' disabled') + '>' + p.label + '</button></section>';
   }
 
   document.addEventListener('input', function (e) {
@@ -1285,7 +1337,8 @@ body.busy button[data-action] { cursor: progress; }
 
   function viewPortfolio() {
     var total = myTotal(), stockV = holdValue(state.hold), ret = (total / START_CASH - 1) * 100;
-    var gross = stockV + bankPrincipal() + state.cash;
+    var shortCodes = Object.keys(state.shorts || {});
+    var gross = stockV + bankPrincipal() + Math.max(0, state.cash) + Math.max(0, shortValue());
     var barTotal = gross + (state.bank.loan || 0);   // 막대 전체 = 가진 돈 전부 + 대출 (주식 · 은행 · 현금 · 대출)
     var cost = 0; for (var c in state.hold) cost += state.hold[c].cost;
     var pnl = stockV - cost, pnlP = cost ? pnl / cost * 100 : 0;
@@ -1296,7 +1349,9 @@ body.busy button[data-action] { cursor: progress; }
         (state.bank.loan && barTotal ? '<b class="loan-seg" style="width:' + (state.bank.loan / barTotal * 100).toFixed(1) + '%"></b>' : '') + '</div>' +
       '<div class="legend"><span><span class="sw" style="background:var(--down)"></span><span class="num">주식 ' + fmt(stockV) + '원</span></span>' +
       '<span><span class="sw" style="background:var(--gold)"></span><span class="num">은행 ' + fmt(bankPrincipal()) + '원</span></span>' +
-      '<span><span class="sw" style="background:var(--line)"></span><span class="num">현금 ' + fmt(state.cash) + '원</span></span></div>' +
+      '<span><span class="sw" style="background:var(--line)"></span><span class="num' + (state.cash < 0 ? ' up' : '') + '">현금 ' + fmt(state.cash) + '원</span></span>' +
+      (shortCodes.length ? '<span><span class="sw" style="background:#7A5CE0"></span><span class="num">공매도 ' + fmt(shortValue()) + '원</span></span>' : '') + '</div>' +
+      (state.cash < 0 ? '<p class="neg-cash">현금이 마이너스예요. 돈벌기·매도·상환으로 들어오는 돈이 먼저 채워지고, 0원이 넘으면 다시 매수할 수 있어요.</p>' : '') +
       (state.bank.loan ? '<div class="split" style="font-size:13px"><span class="label" style="display:flex;align-items:center;gap:6px"><span class="sw loan-sw"></span>대출 (가진 돈의 ' + Math.round(state.bank.loan / Math.max(gross, 1) * 100) + '%)</span><b class="num up">−' + fmt(state.bank.loan) + '원</b></div>' : '') +
       '<div class="split divider"><span class="label">평가 손익</span><b class="num ' + cls(pnl) + '">' + signed(pnl) + '원 (' + pct(pnlP) + ')</b></div>' +
       '<div class="split" style="font-size:13px"><span class="label">돈벌기 수입 누적</span><b class="num" style="color:var(--live)">+' + fmt(state.work.earned) + '원</b></div>' +
@@ -1315,6 +1370,17 @@ body.busy button[data-action] { cursor: progress; }
       });
       html += '</div>';
     }
+    if (shortCodes.length) {
+      var spn = shortPnl();
+      html += '<div class="sec-head"><h2>공매도 ' + shortCodes.length + '</h2><span class="num ' + cls(spn) + '" style="font-size:13px;font-weight:600">평가 ' + signed(spn) + '원</span></div><div class="list">';
+      shortCodes.map(stock).filter(Boolean).forEach(function (s) {
+        var sh = state.shorts[s.code], av = sh.cost / sh.qty, pl = sh.cost - s.price * sh.qty, r = (1 - s.price / av) * 100;
+        html += '<button class="row" data-action="open" data-code="' + s.code + '" type="button">' + logo(s) +
+          '<span class="row-main"><b>' + s.name + ' <span class="tag short">공매도</span></b><span class="num">' + fmt(sh.qty) + '주 · 진입 ' + fmt(av) + ' · 수수료 하루 ' + fmt(Math.ceil(s.price * sh.qty * SHORT_FEE)) + '</span></span>' +
+          '<span class="row-end"><b class="num ' + cls(pl) + '">' + signed(pl) + '원</b><span class="num ' + cls(r) + '">' + pct(r) + '</span></span></button>';
+      });
+      html += '</div>';
+    }
     var dl = state.divLog || [];
     if (dl.length) {
       html += '<div class="sec-head"><h2>배당 내역</h2></div><div class="trades">';
@@ -1329,7 +1395,7 @@ body.busy button[data-action] { cursor: progress; }
     else {
       html += '<div class="trades">';
       state.trades.slice(0, 8).forEach(function (t) {
-        html += '<div class="trade"><span class="tag ' + (t.buy ? 'up' : 'down') + '">' + (t.buy ? '매수' : '매도') + '</span>' +
+        html += '<div class="trade"><span class="tag ' + (t.short ? 'short' : t.buy ? 'up' : 'down') + '">' + (t.short ? (t.buy ? '상환' : '공매도') : t.buy ? '매수' : '매도') + '</span>' +
           '<span class="what">' + t.name + ' ' + t.qty + '주 · <span class="num">' + fmt(t.price) + '원</span></span><span class="when">' + ago(t.tick) + '</span></div>';
       });
       html += '</div>';
@@ -1876,6 +1942,14 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 버전 · 업데이트 내역 ----------
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
+    { v: '3.1.0', d: '11/2', title: '공매도 추가', items: [
+      '공매도가 생겼어요. 주가가 떨어질 것 같을 때 공매도하고, 떨어진 뒤 상환하면 이익이에요',
+      '지폐주(주식 수익 3억)부터 쓸 수 있어요. 공매도할 때 수량 × 현재가를 내고, 상환할 때 낸 돈 + (진입가 − 상환가) × 수량을 돌려받아요',
+      '대차 수수료: 공매도 중이면 게임 하루 마감마다 현재가 기준 0.2%가 빠져요',
+      '공매도 중에 배당이 나오면 배당금을 내가 내요',
+      '같은 종목을 보유하면서 공매도할 수는 없어요',
+      '손실이 낸 돈보다 크면 현금이 마이너스가 될 수 있어요. 마이너스일 때는 돈이 드는 행동은 못 하고, 돈벌기·매도·상환으로 채울 수 있어요'
+    ] },
     { v: '3.0.0', d: '11/1', title: '경제 밸런스 대개편', items: [
       '티어가 9등급으로 늘었어요: 잡주 · 동전주 · 지폐주 · 테마주 · 우량주 · 대형주 · 블루칩 · 레드칩 · 황제주',
       '모든 티어 단계(5~1)에 보상이 생겼어요. 이미 지난 단계 보상도 받을 수 있어요',
@@ -2051,11 +2125,13 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'max') { ui.qty = Math.max(1, maxQty(stock(ui.sel))); renderSheet(); return; }
     if (a === 'qty-pct') {   // 매수 = 살 수 있는 최대 수량 기준, 매도 = 보유 수량 기준 (0주가 되면 1주)
       var mq = maxQty(stock(ui.sel));
-      if (mq < 1) { toast(ui.side === 'buy' ? '현금이 부족해요' : '보유한 주식이 없어요'); return; }
+      if (mq < 1) { toast(sheetParts(stock(ui.sel)).label); return; }
       ui.qtyPct = Number(k); ui.qty = Math.max(1, Math.floor(mq * Number(k) / 100)); renderSheet(); return;
     }
     if (a === 'order') { order(); return; }
     if ((a === 'reset-ask' || a === 'reset-confirm') && state.bank.loan) { toast('대출을 모두 갚아야 처음부터 다시 할 수 있어요'); return; }
+    if ((a === 'reset-ask' || a === 'reset-confirm') && Object.keys(state.shorts || {}).length) { toast('공매도를 모두 상환해야 처음부터 다시 할 수 있어요'); return; }
+    if ((a === 'reset-ask' || a === 'reset-confirm') && state.cash < 0) { toast('현금이 마이너스면 처음부터 다시 할 수 없어요'); return; }
     if (a === 'reset-ask') { ui.confirmReset = true; render(); return; }
     if (a === 'reset-cancel') { ui.confirmReset = false; render(); return; }
     if (a === 'reset-confirm') {
@@ -2127,7 +2203,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 12;
+  var APP_VER = 13;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
@@ -2178,7 +2254,7 @@ body.busy button[data-action] { cursor: progress; }
     var res = await Promise.all([
       q(sb.from('holdings').select('code,qty,cost').eq('player_id', uid).gt('qty', 0)),
       q(sb.from('deposits').select('*').eq('player_id', uid).eq('done', false).order('id')),
-      q(sb.from('trades').select('code,name,buy,qty,price,tick').eq('player_id', uid).eq('gen', p.gen).order('id', { ascending: false }).limit(40)),
+      q(sb.from('trades').select('code,name,buy,qty,price,tick,short').eq('player_id', uid).eq('gen', p.gen).order('id', { ascending: false }).limit(40)),
       q(sb.from('events').select('kind,text,amt,tick').eq('player_id', uid).eq('gen', p.gen).order('id', { ascending: false }).limit(300)),
       q(sb.rpc('get_all_ranking2')),
       q(sb.rpc('get_season_ranking2')),
@@ -2186,10 +2262,13 @@ body.busy button[data-action] { cursor: progress; }
       q(sb.rpc('get_avg_total')),
       q(sb.rpc('get_people_map')),
       q(sb.from('seasons').select('id,name,start_at,end_at,closed,results').order('id', { ascending: false }).limit(7)),
-      q(sb.rpc('my_notices')).catch(function () { return null; })   // 공지함만 실패해도 나머지는 정상으로
+      q(sb.rpc('my_notices')).catch(function () { return null; }),   // 공지함만 실패해도 나머지는 정상으로
+      q(sb.from('shorts').select('code,qty,cost').eq('player_id', uid).gt('qty', 0)).catch(function () { return []; })
     ]);
-    var hold = {};
+    var hold = {}, shorts = {};
     res[0].forEach(function (h) { hold[h.code] = { qty: h.qty, cost: Number(h.cost) }; });
+    (res[11] || []).forEach(function (h) { shorts[h.code] = { qty: h.qty, cost: Number(h.cost) }; });
+    state.shorts = shorts;
     var ev = res[3].map(function (e) { return { kind: e.kind, text: e.text, amt: Number(e.amt), tick: e.tick }; });
     var divByTick = {};
     var divLog = [];
@@ -2201,7 +2280,7 @@ body.busy button[data-action] { cursor: progress; }
     var oldProf = state.prof;
     state.cash = Number(p.cash);
     state.hold = hold;
-    state.trades = res[2].map(function (t) { return { buy: t.buy, code: t.code, name: t.name, qty: t.qty, price: Number(t.price), tick: t.tick }; });
+    state.trades = res[2].map(function (t) { return { buy: t.buy, short: !!t.short, code: t.code, name: t.name, qty: t.qty, price: Number(t.price), tick: t.tick }; });
     state.dayStartTotal = Number(p.day_start_total) || START_CASH;
     state.divTotal = Number(p.div_total);
     state.divLog = divLog;
@@ -2271,6 +2350,10 @@ body.busy button[data-action] { cursor: progress; }
       else if (/대출 이자 납부/.test(e.text)) parts.push('대출 이자 −' + fmt(-e.amt) + '원');
       else if (/대출에 더해짐|납입 실패/.test(e.text)) parts.push(e.text);
     });
+    var shf = ev.filter(function (e) { return e.kind === 'bank' && /^공매도/.test(e.text); }).reduce(function (a, e) { return a + e.amt; }, 0);
+    if (shf) parts.push('공매도 수수료·배당 −' + fmt(-shf) + '원');
+    ev.forEach(function () {
+    });
     toast('Day ' + (t / DAY_TICKS) + ' 마감 · ' + (parts.length ? parts.join(' · ') : '배당락으로 배당주 가격이 조정됐어요'));
   }
 
@@ -2323,7 +2406,9 @@ body.busy button[data-action] { cursor: progress; }
     if (qn < 1 || qn > mx) return;
     var r = await call('place_order', { p_code: s.code, p_side: side, p_qty: qn });
     if (!r) return;
-    toast(s.name + ' ' + qn + '주 ' + (side === 'buy' ? '매수' : '매도') + ' 완료 · ' + fmt(r.data.amt) + '원 · 세금 ' + fmt(r.data.tax || 0) + '원' + (r.data.xp ? ' · +' + r.data.xp + ' XP' : ''));
+    toast(s.name + ' ' + qn + '주 ' + SIDE_NAME[side] + ' 완료 · ' +
+      (side === 'cover' ? '손익 ' + signed(Number(r.data.profit) || 0) + '원' : fmt(r.data.amt) + '원') +
+      ' · 세금 ' + fmt(r.data.tax || 0) + '원' + (r.data.xp ? ' · +' + r.data.xp + ' XP' : ''));
     ui.qty = 1;
     await after(r);
   }
@@ -2494,7 +2579,7 @@ body.busy button[data-action] { cursor: progress; }
 
   // ---------- 시작 ----------
   function blankState() {
-    return { tick: 0, stocks: [], news: [], cash: 0, hold: {}, trades: [], dayStartTotal: START_CASH, divTotal: 0, divLog: [], myEvents: [],
+    return { tick: 0, stocks: [], news: [], cash: 0, hold: {}, shorts: {}, trades: [], dayStartTotal: START_CASH, divTotal: 0, divLog: [], myEvents: [],
       bank: { sav: 0, savMin: 0, deps: [], plans: [], earned: 0, log: [], vault: 0, income: 0, loan: 0, loanTaken: 0 },
       bankStats: { lent: 0, borrowers: 0, players: 0 }, prof: null, work: { tier: 0, last: 0, earned: 0, clicks: 0 }, ranking: [], bots: [] };
   }

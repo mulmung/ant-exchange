@@ -1270,7 +1270,6 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="seg" role="group" aria-label="주문 종류">' + sides.map(function (k) {
         return '<button class="' + k + (side === k ? ' on' : '') + '" data-action="side" data-key="' + k + '" type="button" aria-pressed="' + (side === k) + '">' + SIDE_NAME[k] + '</button>';
       }).join('') + '</div>' +
-      (side === 'short' ? '<p class="sh-note">주가가 <b>떨어지면 이익</b>, 오르면 손실이에요. 낸 돈 + (진입가 − 상환가) × 수량을 상환할 때 돌려받아요. 손실이 낸 돈보다 크면 현금이 마이너스가 될 수 있어요.</p>' : '') +
       '<div class="split"><span style="color:var(--soft)">수량</span><div class="stepper">' +
       '<button data-action="qty" data-key="-1" type="button" aria-label="수량 줄이기">−</button>' +
       '<label class="qty-box"><input id="qty-input" class="num" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="주문 수량" value="' + (ui.qty > 0 ? ui.qty : '') + '" placeholder="0"><span>주</span></label>' +
@@ -1941,6 +1940,9 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 버전 · 업데이트 내역 ----------
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
+    { v: '3.1.2', d: '11/2', title: '', items: [
+      '공매도 주문창의 긴 설명 문구를 없애서 주문창이 짧아졌어요'
+    ] },
     { v: '3.1.1', d: '11/2', title: '', items: [
       '공매도가 보유 종목 목록에 같이 보여요 (공매도 배지로 구분)',
       '평가 손익에 공매도 손익이 포함돼요',
@@ -2208,7 +2210,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 14;
+  var APP_VER = 15;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

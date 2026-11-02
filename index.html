@@ -1376,7 +1376,7 @@ body.busy button[data-action] { cursor: progress; }
       shortCodes.map(stock).filter(Boolean).forEach(function (s) {
         var sh = state.shorts[s.code], av = sh.cost / sh.qty, pl = sh.cost - s.price * sh.qty, r = (1 - s.price / av) * 100;
         html += '<button class="row" data-action="open" data-code="' + s.code + '" type="button">' + logo(s) +
-          '<span class="row-main"><b>' + s.name + ' <span class="tag short">공매도</span></b><span class="num">' + fmt(sh.qty) + '주 · 진입 ' + fmt(av) + ' · 수수료 하루 ' + fmt(Math.ceil(s.price * sh.qty * SHORT_FEE)) + '</span></span>' +
+          '<span class="row-main"><b>' + s.name + ' <span class="tag short">공매도</span></b><span class="num">' + fmt(sh.qty) + '주 · 진입 ' + fmt(av) + '</span></span>' +
           '<span class="row-end"><b class="num ' + cls(pl) + '">' + signed(pl) + '원</b><span class="num ' + cls(r) + '">' + pct(r) + '</span></span></button>';
       });
       html += '</div>';

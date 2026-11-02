@@ -935,6 +935,7 @@ body.busy button[data-action] { cursor: progress; }
   function chg(s) { return s.price - s.base; }
   function chgPct(s) { return (s.price / s.base - 1) * 100; }
   function limitTag(s) {
+    if (s.halted) return '<span class="limit tag up">상한가 · 거래 마감</span>';
     if (s.price >= roundTick(s.base * 1.3) - unit(s.price)) return '<span class="limit tag up">상한가</span>';
     if (s.price <= roundTick(s.base * 0.7) + unit(s.price)) return '<span class="limit tag down">하한가</span>';
     return '';
@@ -1220,7 +1221,8 @@ body.busy button[data-action] { cursor: progress; }
   function sheetParts(s) {
     var side = ui.side, mx = maxQty(s), q = ui.qty, pay = side === 'buy' || side === 'short';
     var label, ok = false;
-    if (side === 'short' && !canShort()) label = '공매도는 지폐주부터 할 수 있어요';
+    if (s.halted) label = '상한가로 오늘 거래 마감 · 다음 날 열려요';
+    else if (side === 'short' && !canShort()) label = '공매도는 지폐주부터 할 수 있어요';
     else if (mx < 1) label = pay ? '현금이 부족해요' : side === 'cover' ? '상환할 공매도가 없어요' : '보유한 주식이 없어요';
     else if (q < 1) label = '수량을 입력해주세요';
     else if (q > mx) label = (pay ? '현금이 부족해요' : side === 'cover' ? '공매도 수량보다 많아요' : '보유 수량보다 많아요') + ' · 최대 ' + fmt(mx) + '주';
@@ -1943,6 +1945,11 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 버전 · 업데이트 내역 ----------
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
+    { v: '3.2.0', d: '11/2', title: '상한가 거래 마감', items: [
+      '종목이 상한가에 닿으면 그 종목은 그날 거래가 끝나요. 매수 · 매도 · 공매도 · 상환 모두 다음 날 다시 열려요',
+      '거래가 마감된 종목은 가격이 상한가에 멈추고 "상한가 · 거래 마감"으로 표시돼요',
+      '상한가에 닿으면 채팅에 알림이 떠요'
+    ] },
     { v: '3.1.3', d: '11/2', title: '', items: [
       '지폐주 아래 티어는 공매도 버튼이 자물쇠와 함께 흐리게 보여요. 누르면 열리는 조건을 알려줘요',
       '티어 보상 목록의 지폐주 5에 "공매도 열림"이 표시돼요'
@@ -2218,7 +2225,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 16;
+  var APP_VER = 17;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
@@ -2232,7 +2239,7 @@ body.busy button[data-action] { cursor: progress; }
   async function loadMarket() {
     var res = await Promise.all([
       q(sb.from('game').select('tick,vault,news_seq,updated_at,client_ver').eq('id', 1).single()),
-      q(sb.from('stocks').select('code,name,sector,vol,price,prev,base,init,div_rate,sort').order('sort')),
+      q(sb.from('stocks').select('code,name,sector,vol,price,prev,base,init,div_rate,sort,halted').order('sort')),
       q(sb.from('news_ring').select('seq,code,text,up,tick,price').order('seq', { ascending: false }).limit(150)),
       q(sb.rpc('get_bank_stats'))
     ]);
@@ -2243,7 +2250,7 @@ body.busy button[data-action] { cursor: progress; }
     gameUpdatedAt = Date.parse(g.updated_at) || Date.now();
     state.stocks = res[1].map(function (s) {
       var o = old[s.code], hist = o ? o.hist : [];
-      var ns = { code: s.code, name: s.name, sector: s.sector, vol: s.vol, price: Number(s.price), prev: Number(s.prev), base: Number(s.base), init: Number(s.init), div_rate: s.div_rate, hist: hist, histTick: o ? o.histTick : -1 };
+      var ns = { code: s.code, name: s.name, sector: s.sector, vol: s.vol, price: Number(s.price), prev: Number(s.prev), base: Number(s.base), init: Number(s.init), div_rate: s.div_rate, halted: !!s.halted, hist: hist, histTick: o ? o.histTick : -1 };
       return ns;
     });
     var needHist = state.stocks.some(function (s) { return s.histTick < 0 || state.tick - s.histTick > 1; });

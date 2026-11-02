@@ -336,6 +336,7 @@ body.busy button[data-action] { cursor: progress; }
 .cta { min-height: 54px; border: 0; border-radius: 14px; color: #FFFFFF; font-size: 17px; font-weight: 700; }
 .cta.buy { background: var(--up-btn); } .cta.sell { background: var(--down-btn); }
 .seg .short.on, .seg .cover.on { background: #7A5CE0; color: #FFFFFF; }
+.seg .locked { display: inline-flex; align-items: center; justify-content: center; gap: 4px; opacity: .45; }
 .cta.short, .cta.cover { background: #7A5CE0; }
 .tag.short { background: rgba(122,92,224,.22); color: #B9A6FF; }
 .sh-note { margin: 0; font-size: 12px; color: var(--soft); line-height: 1.5; }
@@ -838,7 +839,7 @@ body.busy button[data-action] { cursor: progress; }
     TIER_REWARDS.forEach(function (r) {
       var got = p.ach['tier_' + r.key], open = best >= r.need, col = tierOf(r.need).color, ri = tierOf(r.need).idx;
       if (!ui.allTierRw && !(ri === curIdx || (open && !got))) { hidden++; return; }
-      html += '<div class="ach' + (got ? ' done' : '') + '"><span class="ach-t"><b style="color:' + (open ? col : 'var(--soft)') + '">' + r.name + '</b><span>주식으로 번 돈 ' + krw(r.need) + ' 달성</span></span>' +
+      html += '<div class="ach' + (got ? ' done' : '') + '"><span class="ach-t"><b style="color:' + (open ? col : 'var(--soft)') + '">' + r.name + '</b><span>주식으로 번 돈 ' + krw(r.need) + ' 달성' + (r.need === SHORT_MIN ? ' · <span class="tag short">공매도 열림</span>' : '') + '</span></span>' +
         (got ? '<span class="num ach-xp">' + krw(r.amt) + ' 받음</span>'
           : open ? '<button class="treward claim tier-claim" data-action="claim-tier" data-key="' + r.key + '" type="button">' + krw(r.amt) + ' 받기</button>'
           : '<span class="num ach-xp">' + krw(r.amt) + '</span>') + '</div>';
@@ -1260,7 +1261,7 @@ body.busy button[data-action] { cursor: progress; }
     var inp = document.getElementById('qty-input');
     if (inp && document.activeElement === inp && !sheet.hidden) { updateSheet(); return; }
     var s = stock(ui.sel), sides = sideList(s);
-    if (sides.indexOf(ui.side) < 0) { ui.side = sides[0]; ui.qty = 1; ui.qtyPct = null; }
+    if (sides.indexOf(ui.side) < 0 || (ui.side === 'short' && !canShort())) { ui.side = sides[0]; ui.qty = 1; ui.qtyPct = null; }
     var side = ui.side, buy = side === 'buy', p = sheetParts(s);
     var taxLbl = { buy: '매수 0.1%', sell: '매도 0.2%', short: '공매도 0.2%', cover: '상환 0.1%' }[side];
     var totLbl = { buy: '총 결제 금액', sell: '받을 금액', short: '총 결제 금액 (공매도 대금)', cover: '돌려받을 금액' }[side];
@@ -1268,6 +1269,8 @@ body.busy button[data-action] { cursor: progress; }
     sheet.hidden = false;
     sheet.innerHTML = '<section class="sheet-in" aria-label="주문">' +
       '<div class="seg" role="group" aria-label="주문 종류">' + sides.map(function (k) {
+        if (k === 'short' && !canShort()) return '<button class="short locked" data-action="short-locked" type="button" aria-disabled="true">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>공매도</button>';
         return '<button class="' + k + (side === k ? ' on' : '') + '" data-action="side" data-key="' + k + '" type="button" aria-pressed="' + (side === k) + '">' + SIDE_NAME[k] + '</button>';
       }).join('') + '</div>' +
       '<div class="split"><span style="color:var(--soft)">수량</span><div class="stepper">' +
@@ -1940,6 +1943,10 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 버전 · 업데이트 내역 ----------
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
+    { v: '3.1.3', d: '11/2', title: '', items: [
+      '지폐주 아래 티어는 공매도 버튼이 자물쇠와 함께 흐리게 보여요. 누르면 열리는 조건을 알려줘요',
+      '티어 보상 목록의 지폐주 5에 "공매도 열림"이 표시돼요'
+    ] },
     { v: '3.1.2', d: '11/2', title: '', items: [
       '공매도 주문창의 긴 설명 문구를 없애서 주문창이 짧아졌어요'
     ] },
@@ -2127,6 +2134,7 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'back') { goBack(); return; }
     if (a === 'sort') { ui.sort = k; render(); return; }
     if (a === 'period') { ui.period = k; render(); return; }
+    if (a === 'short-locked') { toast('공매도는 지폐주(주식으로 번 돈 3억)부터 열려요'); return; }
     if (a === 'side') { ui.side = k; ui.qty = 1; ui.qtyPct = null; renderSheet(); return; }
     if (a === 'qty') { ui.qtyPct = null; var mx = maxQty(stock(ui.sel)); ui.qty = Math.min(Math.max(1, ui.qty + Number(k)), Math.max(1, mx)); renderSheet(); return; }
     if (a === 'max') { ui.qty = Math.max(1, maxQty(stock(ui.sel))); renderSheet(); return; }
@@ -2210,7 +2218,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 15;
+  var APP_VER = 16;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

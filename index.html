@@ -367,6 +367,17 @@ body.busy button[data-action] { cursor: progress; }
 .eq-row > * { min-width: 0; }
 .eq-empty { aspect-ratio: 4 / 5; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 13px; }
 .gpanel { gap: 10px; }
+.dex-cell { position: relative; }
+.dex-claim { position: absolute; left: 4px; right: 4px; bottom: 4px; border: 0; border-radius: 8px; background: linear-gradient(180deg,#3FB6FF,#1E7FE0); color: #fff; font-size: 10px; font-weight: 800; padding: 4px 2px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.5); animation: dexPulse 1.6s ease-in-out infinite; }
+@keyframes dexPulse { 50% { transform: scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .dex-claim { animation: none; } }
+.dex-grid > * { min-width: 0; }
+.dex-rw { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font-size: 9px; color: #5C6680; }
+.dex-all { margin-top: 2px; }
+.tp-seg button { position: relative; }
+.tp-dot, .nav button.has-dot::after { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #FF4D5E; }
+.tp-dot { top: 8px; right: 18%; }
+.nav button { position: relative; } .nav button.has-dot::after { content: ''; top: 6px; right: calc(50% - 16px); }
 .gd-modal { position: fixed; inset: 0; z-index: 50; background: rgba(4,6,10,.82); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .gd-modal[hidden] { display: none; }
 .gd-box { width: 100%; max-width: 420px; max-height: 92vh; overflow: auto; background: var(--surface); border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; }
@@ -1100,7 +1111,8 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="split"><div class="dia-big"><span class="num">💎 ' + fmt(G.dia) + '</span><small>다이아</small></div>' +
       '<span class="label">강림 1회 ' + fmt(GOD_COST) + '다이아</span></div>' +
       '<div class="seg tp-seg" role="group" aria-label="신전 메뉴">' + [['summon', '강림'], ['mine', '수호신'], ['dex', '도감']].map(function (x) {
-        return '<button class="' + (tab === x[0] ? 'on' : '') + '" data-action="tp-tab" data-key="' + x[0] + '" type="button" aria-pressed="' + (tab === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+        var dot = (x[0] === 'dex' && dexUnclaimed(G).n) || (x[0] === 'summon' && G.tickets > 0);
+        return '<button class="' + (tab === x[0] ? 'on' : '') + '" data-action="tp-tab" data-key="' + x[0] + '" type="button" aria-pressed="' + (tab === x[0]) + '">' + x[1] + (dot ? '<i class="tp-dot"></i>' : '') + '</button>'; }).join('') + '</div>';
     if (tab === 'summon') html += templeSummon(G);
     else if (tab === 'mine') html += templeMine(G);
     else html += templeDex(G);
@@ -1181,17 +1193,29 @@ body.busy button[data-action] { cursor: progress; }
     } else html += '<p class="note" style="margin:0">최고 등급이에요 👑</p>';
     return html + '</section>';
   }
+  var DEX_RW = [1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 500000];   // 서버 god_dex_reward 와 같은 값
+  function dexUnclaimed(G) {
+    G = G || state.god; var dex = G.dex || {}, dc = G.dex_claimed || {}, n = 0, amt = 0;
+    Object.keys(dex).forEach(function (k) { if (!dc[k]) { n++; amt += DEX_RW[Number(k.split(':')[1]) - 1] || 0; } });
+    return { n: n, amt: amt };
+  }
   function templeDex(G) {
-    var dex = G.dex || {}, n = Object.keys(dex).length;
-    var html = '<div class="sec-head"><h2>도감</h2><span class="label">' + n + ' / 40</span></div>';
+    var dex = G.dex || {}, dc = G.dex_claimed || {}, n = Object.keys(dex).length, un = dexUnclaimed(G);
+    var html = '<div class="sec-head"><h2>도감</h2><span class="label">' + n + ' / 40</span></div>' +
+      '<p class="note" style="margin:0">처음 얻은 카드마다 다이아 보상을 한 번 받아요.</p>';
+    if (un.n) html += '<button class="cta buy dex-all" data-action="gd-dex" data-key="all" type="button">💎 모두 받기 · ' + un.n + '칸 ' + fmt(un.amt) + '다이아</button>';
     GODS.forEach(function (gd) {
       html += '<div class="sec-head"><h2 style="color:' + gd.c + ';font-size:15px">' + gd.ic + ' ' + gd.n + '</h2><span class="label">' + GRADES.filter(function (_, i) { return dex[gd.k + ':' + (i + 1)]; }).length + ' / 10</span></div><div class="dex-grid">';
-      for (var g = 1; g <= 10; g++) html += dex[gd.k + ':' + g] ? godCard(gd.k, g, {}) :
-        '<div class="gcard locked" style="--gc:#2A3142"><span class="dex-q">?</span><span class="gc-g">' + GRADES[g - 1] + '</span></div>';
+      for (var g = 1; g <= 10; g++) {
+        var key = gd.k + ':' + g;
+        if (!dex[key]) html += '<div class="gcard locked" style="--gc:#2A3142"><span class="dex-q">?</span><span class="gc-g">' + GRADES[g - 1] + '</span><span class="dex-rw num">💎 ' + short2(DEX_RW[g - 1]) + '</span></div>';
+        else html += '<div class="dex-cell">' + godCard(gd.k, g, {}) + (dc[key] ? '' : '<button class="dex-claim" data-action="gd-dex" data-key="' + key + '" type="button">💎 ' + short2(DEX_RW[g - 1]) + ' 받기</button>') + '</div>';
+      }
       html += '</div>';
     });
     return html;
   }
+  function short2(n) { return n >= 10000 ? fmt(n / 10000) + '만' : n >= 1000 ? fmt(n / 1000) + '천' : fmt(n); }
   function godModal(html, extra) {
     var m = document.getElementById('gd-modal');
     if (!m) { m = document.createElement('div'); m.id = 'gd-modal'; m.className = 'gd-modal'; document.body.appendChild(m); }
@@ -1232,7 +1256,7 @@ body.busy button[data-action] { cursor: progress; }
   function godPing() {
     if (!booted || pingBusy || document.hidden) return;
     pingBusy = true;
-    sb.rpc('god_ping').then(function (r) { if (!r.error && r.data) { godSet(r.data); if (ui.view === 'temple') safeRender(); } })
+    sb.rpc('god_ping').then(function (r) { if (!r.error && r.data) { godSet(r.data); if (ui.view === 'temple') safeRender(); else { var tb = document.querySelector('.nav button[data-view=temple]'); if (tb) tb.classList.toggle('has-dot', !!(dexUnclaimed().n || state.god.tickets > 0)); } } })
       .catch(function () {}).finally(function () { pingBusy = false; });
   }
   async function godAction(a, k) {
@@ -1257,6 +1281,10 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'gd-summon') {
       r = await call('god_summon', { p_n: Number(k) }); if (!r) return;
       godSet(r.data.state); godSummonResult(r.data.res, r.data.tickets_new); render(); return;
+    }
+    if (a === 'gd-dex') {
+      r = await call('god_dex_claim', { p_key: k }); if (!r) return;
+      godSet(r.data.state); toast('💎 도감 보상 +' + fmt(r.data.amt) + '다이아' + (r.data.n > 1 ? ' (' + r.data.n + '칸)' : '')); render(); return;
     }
     if (a === 'gd-pick') {
       r = await call('god_pick', { p_kind: k }); if (!r) return;
@@ -2224,6 +2252,8 @@ body.busy button[data-action] { cursor: progress; }
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
     { v: '3.3.1', d: '11/5', title: '', items: [
+      '도감 보상: 처음 얻은 카드마다 다이아를 한 번 받아요 (일반 1,000 ~ 신 500,000). 도감에서 받기 버튼을 눌러 받아요',
+      '받을 도감 보상이나 전설 선택권이 있으면 신전 탭에 빨간 점이 떠요',
       '신전 장착 칸이 카드만 깔끔하게 보이도록 바뀌었어요. 카드를 누르면 효과를 보고 해제할 수 있어요',
       '장착 칸 카드가 작게 찌그러져 보이던 문제를 고쳤어요'
     ] },
@@ -2348,6 +2378,8 @@ body.busy button[data-action] { cursor: progress; }
     document.getElementById('bgm-btn').hidden = noFloat;
     chatShow(v !== 'detail');
     var btns = document.querySelectorAll('.nav button');
+    var tpBtn = document.querySelector('.nav button[data-view=temple]');
+    if (tpBtn && state.god) tpBtn.classList.toggle('has-dot', !!(dexUnclaimed().n || state.god.tickets > 0));
     for (var i = 0; i < btns.length; i++) { var on = btns[i].dataset.view === v; btns[i].classList.toggle('on', on); if (on) btns[i].setAttribute('aria-current', 'page'); else btns[i].removeAttribute('aria-current'); }
     renderSheet();
     updateCountdown();

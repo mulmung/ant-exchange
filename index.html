@@ -364,8 +364,8 @@ body.busy button[data-action] { cursor: progress; }
 .gc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .dex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .eq-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.eq-slot { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; font-size: 12px; } .eq-slot b { font-size: 13px; } .eq-slot span { color: var(--soft); }
-.eq-slot.empty { aspect-ratio: 4 / 5; justify-content: center; border: 2px dashed var(--line); border-radius: 12px; color: var(--muted); }
+.eq-row > * { min-width: 0; }
+.eq-empty { aspect-ratio: 4 / 5; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 13px; }
 .gpanel { gap: 10px; }
 .gd-modal { position: fixed; inset: 0; z-index: 50; background: rgba(4,6,10,.82); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .gd-modal[hidden] { display: none; }
@@ -1138,16 +1138,15 @@ body.busy button[data-action] { cursor: progress; }
     var html = '<div class="sec-head"><h2>장착</h2><span class="label">' + keys.length + ' / 3칸</span></div><div class="eq-row">';
     for (var i = 0; i < 3; i++) {
       var g = keys[i];
-      if (g) html += '<div class="eq-slot">' + godCard(g.k, eq[g.k], { action: 'gd-view' }) + '<b>' + g.n + '</b><span>' + godFx(g.k, eq[g.k]) + '</span>' +
-        '<button class="link" data-action="gd-unequip" data-key="' + g.k + '" type="button">해제</button></div>';
-      else html += '<div class="eq-slot empty"><span>빈 칸</span></div>';
+      if (g) html += godCard(g.k, eq[g.k], { action: 'gd-eqview', name: true });
+      else html += '<div class="eq-empty">빈 칸</div>';
     }
     html += '</div>';
     var fx = ['쿨타임 ' + (G.cd || 60) + '초'];
     if (eq.plutus) fx.push('금액 +' + GF.plutus[eq.plutus - 1] + '%');
     if (eq.tyche) fx.push('대박 ' + GF.tyche[eq.tyche - 1] + '% ×' + GF.tycheX[eq.tyche - 1]);
     if (eq.athena) fx.push('자동 ' + (GF.athena[eq.athena - 1] ? mmss(GF.athena[eq.athena - 1]) + '마다' : '쿨타임마다'));
-    html += '<p class="note" style="margin:0">돈벌기 효과: ' + fx.join(' · ') + '</p>';
+    html += '<p class="note" style="margin:0">돈벌기 효과: ' + fx.join(' · ') + (keys.length ? ' · 카드를 누르면 자세히 보거나 해제할 수 있어요' : '') + '</p>';
     if (eq.athena) html += '<p class="note" style="margin:0">🦉 아테나는 <b>게임 화면이 켜져 있을 때만</b> 자동으로 눌러줘요. 다음 자동까지 <b id="auto-left">' + autoLeftText() + '</b></p>';
     var any = false;
     GODS.forEach(function (gd) {
@@ -1193,10 +1192,10 @@ body.busy button[data-action] { cursor: progress; }
     });
     return html;
   }
-  function godModal(html) {
+  function godModal(html, extra) {
     var m = document.getElementById('gd-modal');
     if (!m) { m = document.createElement('div'); m.id = 'gd-modal'; m.className = 'gd-modal'; document.body.appendChild(m); }
-    m.innerHTML = '<div class="gd-box" role="dialog" aria-modal="true">' + html + '<button class="cta buy" data-action="gd-close" type="button">확인</button></div>';
+    m.innerHTML = '<div class="gd-box" role="dialog" aria-modal="true">' + html + (extra || '') + '<button class="cta buy" data-action="gd-close" type="button">' + (extra ? '닫기' : '확인') + '</button></div>';
     m.hidden = false;
   }
   function godSummonResult(res, tk) {
@@ -1241,6 +1240,13 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'gd-sel') { ui.gsel = ui.gsel === k ? null : k; ui.gmats = null; render(); return; }
     if (a === 'gd-mats') { ui.gmats = Number(k); render(); return; }
     if (a === 'gd-close') { var m = document.getElementById('gd-modal'); if (m) m.hidden = true; return; }
+    if (a === 'gd-eqview') {
+      var e2 = k.split(':'), ek = e2[0], eg = Number(e2[1]);
+      godModal('<div class="gd-one">' + godCard(ek, eg, { action: 'none' }) + '</div><b class="gd-title" style="color:' + GRADE_C[eg - 1] + '">' + GRADES[eg - 1] + ' ' + GOD[ek].n + '</b>' +
+        '<span class="label">' + GOD[ek].d + '</span><b>' + godFx(ek, eg) + '</b>',
+        '<button class="ghost" data-action="gd-unequip" data-key="' + ek + '" type="button" style="align-self:stretch">장착 해제</button>');
+      return;
+    }
     if (a === 'gd-view') {
       var p = k.split(':'), gk = p[0], gg = Number(p[1]);
       godModal('<div class="gd-one">' + godCard(gk, gg, { action: 'none' }) + '</div><b class="gd-title" style="color:' + GRADE_C[gg - 1] + '">' + GRADES[gg - 1] + ' ' + GOD[gk].n + '</b>' +
@@ -1261,6 +1267,7 @@ body.busy button[data-action] { cursor: progress; }
       godSet(r.data); toast(GRADES[q[1] - 1] + ' ' + GOD[q[0]].n + ' 장착 · ' + godFx(q[0], Number(q[1]))); ui.gsel = null; render(); return;
     }
     if (a === 'gd-unequip') {
+      var mm = document.getElementById('gd-modal'); if (mm) mm.hidden = true;
       r = await call('god_equip', { p_kind: k, p_grade: 0 }); if (!r) return;
       godSet(r.data); toast(GOD[k].n + ' 장착을 해제했어요'); render(); return;
     }
@@ -2216,6 +2223,10 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 버전 · 업데이트 내역 ----------
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
+    { v: '3.3.1', d: '11/5', title: '', items: [
+      '신전 장착 칸이 카드만 깔끔하게 보이도록 바뀌었어요. 카드를 누르면 효과를 보고 해제할 수 있어요',
+      '장착 칸 카드가 작게 찌그러져 보이던 문제를 고쳤어요'
+    ] },
     { v: '3.3.0', d: '11/5', title: '신전 오픈', items: [
       '하단 뉴스 탭 자리에 신전이 생겼어요. 뉴스는 시세 화면의 속보를 눌러서 볼 수 있어요',
       '수호신 4종: 아이온(쿨타임 감소) · 플루토스(금액 증가) · 아테나(자동 누르기) · 티케(대박 확률)',
@@ -2515,7 +2526,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 20;
+  var APP_VER = 21;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

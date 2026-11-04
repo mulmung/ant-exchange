@@ -349,7 +349,12 @@ body.busy button[data-action] { cursor: progress; }
 .summon-btn.big { background: linear-gradient(180deg,#4A3A12,#221A08); border-color: #E8C76A; box-shadow: 0 0 16px rgba(232,199,106,.25); }
 .summon-btn:disabled { opacity: .4; cursor: not-allowed; }
 .pr-row { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; } .pr-row span { display: inline-flex; gap: 4px; } .pr-row b { font-weight: 700; }
-.dia-ways { display: flex; flex-direction: column; gap: 8px; } .dia-ways div { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface); font-size: 13px; } .dia-ways span { color: var(--soft); text-align: right; }
+.dia-ways { display: flex; flex-direction: column; gap: 8px; }
+.dw-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface); font-size: 13px; }
+.dw-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; } .dw-main span { color: var(--soft); font-size: 12px; }
+.dw-lv { font-size: 11px; font-weight: 700; color: #9FE7FF; background: rgba(159,231,255,.12); border-radius: 99px; padding: 1px 7px; margin-left: 4px; }
+.dw-claim { flex-shrink: 0; border: 0; border-radius: 10px; padding: 8px 10px; background: linear-gradient(180deg,#3FB6FF,#1E7FE0); color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; animation: dexPulse 1.6s ease-in-out infinite; }
+.dw-none { flex-shrink: 0; color: var(--muted); font-size: 11px; }
 .tk-card { border: 1px solid #FF9A3C; } .tk-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .tk-pick button { border: 1px solid #FF9A3C66; border-radius: 12px; background: var(--bg); padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--fg); font-size: 12px; } .tk-pick img { width: 100%; border-radius: 8px; }
 .gcard { position: relative; display: block; padding: 0; border: 2px solid var(--gc); border-radius: 12px; background: #000; overflow: hidden; aspect-ratio: 4 / 5; width: 100%; }
@@ -1114,7 +1119,7 @@ body.busy button[data-action] { cursor: progress; }
       '<div class="split"><div class="dia-big"><span class="num">💎 ' + fmt(G.dia) + '</span><small>다이아</small></div>' +
       '<span class="label">강림 1회 ' + fmt(GOD_COST) + '다이아</span></div>' +
       '<div class="seg tp-seg" role="group" aria-label="신전 메뉴">' + [['summon', '강림'], ['mine', '수호신'], ['dex', '도감']].map(function (x) {
-        var dot = (x[0] === 'dex' && dexUnclaimed(G).n) || (x[0] === 'summon' && G.tickets > 0);
+        var dot = (x[0] === 'dex' && dexUnclaimed(G).n) || (x[0] === 'summon' && (G.tickets > 0 || diaPend().total > 0));
         return '<button class="' + (tab === x[0] ? 'on' : '') + '" data-action="tp-tab" data-key="' + x[0] + '" type="button" aria-pressed="' + (tab === x[0]) + '">' + x[1] + (dot ? '<i class="tp-dot"></i>' : '') + '</button>'; }).join('') + '</div>';
     if (tab === 'summon') html += templeSummon(G);
     else if (tab === 'mine') html += templeMine(G);
@@ -1140,12 +1145,19 @@ body.busy button[data-action] { cursor: progress; }
     if (l === 10) html += '<div class="split divider"><span class="label">전설 확정 (천장)</span><b class="num" style="color:' + GRADE_C[4] + '">' + fmt(GOD_PITY - G.pity) + '회 남음</b></div>';
     else html += '<p class="note" style="margin:0">강림 Lv.10이 되면 ' + GOD_PITY + '회 안에 전설이 안 나올 때 원하는 수호신 전설을 골라 받아요.</p>';
     html += '<p class="note" style="margin:0">수호신 4종은 각각 25% 확률로 나와요.</p></section>';
-    var playNext = 10 - (G.play_min % 10), bankNeed = (G.dia_bank_paid + 1) * 1e6 - (state.bank.earned || 0), pnlNeed = (G.dia_pnl_paid + 1) * 1e8 - (state.prof.pnlBest || 0);
-    html += '<div class="sec-head"><h2>다이아 얻는 법</h2><span class="label">한 번에 100다이아</span></div><div class="dia-ways">' +
-      '<div><b>⏱ 접속 10분</b><span>다음까지 ' + playNext + '분 · 오늘 ' + mmss(G.play_day_min * 60).replace(/ ?0초$/, '') + ' / 12시간</span></div>' +
-      '<div><b>🏦 은행 이자 100만 원</b><span>다음까지 ' + krw(Math.max(0, bankNeed)) + '</span></div>' +
-      '<div><b>📈 주식 최고 수익 1억</b><span>다음까지 ' + krw(Math.max(0, pnlNeed)) + '</span></div></div>' +
-      '<p class="note" style="margin:0">접속 보상은 게임 화면이 켜져 있을 때만 쌓여요 (하루 최대 12시간).</p>';
+    var pd = diaPend(), playNext = 10 - (G.play_min % 10);
+    var bankNeed = (Math.floor(Math.max(0, state.bank.earned || 0) / 1e6) + 1) * 1e6 - (state.bank.earned || 0);
+    var pnlNeed = (Math.floor(Math.max(0, state.prof.pnlBest || 0) / 1e8) + 1) * 1e8 - (state.prof.pnlBest || 0);
+    var row = function (src, title, lv, n, sub) {
+      return '<div class="dw-row"><div class="dw-main"><b>' + title + ' <span class="dw-lv">Lv.' + fmt(lv) + '</span></b><span>' + sub + '</span></div>' +
+        (n > 0 ? '<button class="dw-claim" data-action="gd-claim" data-key="' + src + '" type="button">💎 받기 <b>×' + fmt(n) + '</b></button>' : '<span class="dw-none">쌓인 것 없음</span>') + '</div>';
+    };
+    html += '<div class="sec-head"><h2>다이아 얻는 법</h2><span class="label">1개 = 100다이아</span></div><div class="dia-ways">' +
+      row('play', '⏱ 접속 10분', G.lv_play || 0, pd.play, '다음까지 ' + playNext + '분 · 오늘 ' + (G.play_day_min >= 60 ? Math.floor(G.play_day_min / 60) + '시간 ' + (G.play_day_min % 60 ? G.play_day_min % 60 + '분' : '') : G.play_day_min + '분') + ' / 12시간') +
+      row('bank', '🏦 은행 이자 100만 원', G.lv_bank || 0, pd.bank, '다음까지 ' + krw(Math.max(0, bankNeed))) +
+      row('pnl', '📈 주식 최고 수익 1억', G.lv_pnl || 0, pd.pnl, '다음까지 ' + krw(Math.max(0, pnlNeed))) + '</div>' +
+      (pd.total > 0 ? '<button class="cta buy" data-action="gd-claim" data-key="all" type="button">💎 모두 받기 · ' + fmt(pd.total * 100) + '다이아</button>' : '') +
+      '<p class="note" style="margin:0">조건을 채우면 보상이 쌓여요. 받기를 누르면 쌓인 만큼 한 번에 받고, 받은 개수만큼 레벨이 올라요. 접속 보상은 게임 화면이 켜져 있을 때만 쌓여요 (하루 최대 12시간).</p>';
     return html;
   }
   function templeMine(G) {
@@ -1197,6 +1209,14 @@ body.busy button[data-action] { cursor: progress; }
     return html + '</section>';
   }
   var DEX_RW = [1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 500000];   // 서버 god_dex_reward 와 같은 값
+  // 쌓인 다이아 보상 개수 (주식·이자는 화면에서 바로 계산 → 거래하자마자 보임)
+  function diaPend() {
+    var G = state.god || {}, play = G.pend_play || 0;
+    var bank = Math.max(0, Math.floor(Math.max(0, (state.bank && state.bank.earned) || 0) / 1e6) - (G.dia_bank_paid || 0));
+    var pnl = Math.max(0, Math.floor(Math.max(0, (state.prof && state.prof.pnlBest) || 0) / 1e8) - (G.dia_pnl_paid || 0));
+    if (G.pend_bank == null) { bank = 0; pnl = 0; }   // 서버 상태를 아직 못 받았으면 0
+    return { play: play, bank: bank, pnl: pnl, total: play + bank + pnl };
+  }
   function dexUnclaimed(G) {
     G = G || state.god; var dex = G.dex || {}, dc = G.dex_claimed || {}, n = 0, amt = 0;
     Object.keys(dex).forEach(function (k) { if (!dc[k]) { n++; amt += DEX_RW[Number(k.split(':')[1]) - 1] || 0; } });
@@ -1289,7 +1309,7 @@ body.busy button[data-action] { cursor: progress; }
   function godPing() {
     if (!booted || pingBusy || document.hidden) return;
     pingBusy = true;
-    sb.rpc('god_ping').then(function (r) { if (!r.error && r.data) { godSet(r.data); if (ui.view === 'temple') safeRender(); else { var tb = document.querySelector('.nav button[data-view=temple]'); if (tb) tb.classList.toggle('has-dot', !!(dexUnclaimed().n || state.god.tickets > 0)); } } })
+    sb.rpc('god_ping').then(function (r) { if (!r.error && r.data) { godSet(r.data); if (ui.view === 'temple') safeRender(); else { var tb = document.querySelector('.nav button[data-view=temple]'); if (tb) tb.classList.toggle('has-dot', !!(dexUnclaimed().n || state.god.tickets > 0 || diaPend().total > 0)); } } })
       .catch(function () {}).finally(function () { pingBusy = false; });
   }
   async function godAction(a, k) {
@@ -1326,6 +1346,12 @@ body.busy button[data-action] { cursor: progress; }
       godModal('<b class="gd-title" style="color:' + GRADE_C[best - 1] + '">일괄 강화 완료!</b><div class="gd-one">' + godCard(bb.k, best, { action: 'none' }) + '</div>' +
         '<span class="label">' + (r.data.steps || []).map(function (s2) { return GRADES[s2.g] + ' +' + s2.made; }).join(' · ') + '</span>');
       ui.gsel = godQty(bb.k, bb.g) ? bb.k + ':' + bb.g : null; render(); return;
+    }
+    if (a === 'gd-claim') {
+      r = await call('god_dia_claim', { p_src: k }); if (!r) return;
+      godSet(r.data.state);
+      var parts = []; if (r.data.play) parts.push('접속 ×' + r.data.play); if (r.data.bank) parts.push('이자 ×' + r.data.bank); if (r.data.pnl) parts.push('주식 ×' + r.data.pnl);
+      toast('💎 +' + fmt(r.data.amt) + '다이아 · ' + parts.join(' · ')); render(); return;
     }
     if (a === 'gd-dex') {
       r = await call('god_dex_claim', { p_key: k }); if (!r) return;
@@ -2296,6 +2322,11 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 버전 · 업데이트 내역 ----------
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
+    { v: '3.3.3', d: '11/5', title: '', items: [
+      '다이아 보상(접속 · 은행 이자 · 주식 수익)이 쌓이면 받기 버튼으로 한 번에 받아요. 몇 개 쌓였는지 보여줘요',
+      '보상을 받은 개수만큼 그 보상의 레벨이 올라요',
+      '주식 · 이자 보상이 거래하자마자 바로 보여요 (전에는 최대 1~2분 늦게 들어왔어요)'
+    ] },
     { v: '3.3.2', d: '11/5', title: '', items: [
       '⚡ 100%로 한 번에 강화: 카드를 누르고 버튼 하나로 실패 없이 최대한 강화해요',
       '"이 등급만" 또는 "위로 연쇄"를 고를 수 있고, 연쇄는 멈출 등급도 정할 수 있어요. 누르기 전에 결과를 미리 보여줘요',
@@ -2429,7 +2460,7 @@ body.busy button[data-action] { cursor: progress; }
     chatShow(v !== 'detail');
     var btns = document.querySelectorAll('.nav button');
     var tpBtn = document.querySelector('.nav button[data-view=temple]');
-    if (tpBtn && state.god) tpBtn.classList.toggle('has-dot', !!(dexUnclaimed().n || state.god.tickets > 0));
+    if (tpBtn && state.god) tpBtn.classList.toggle('has-dot', !!(dexUnclaimed().n || state.god.tickets > 0 || diaPend().total > 0));
     for (var i = 0; i < btns.length; i++) { var on = btns[i].dataset.view === v; btns[i].classList.toggle('on', on); if (on) btns[i].setAttribute('aria-current', 'page'); else btns[i].removeAttribute('aria-current'); }
     renderSheet();
     updateCountdown();
@@ -2608,7 +2639,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 22;
+  var APP_VER = 23;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;

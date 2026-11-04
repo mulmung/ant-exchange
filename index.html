@@ -368,6 +368,9 @@ body.busy button[data-action] { cursor: progress; }
 .eq-empty { aspect-ratio: 4 / 5; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 13px; }
 .gpanel { gap: 10px; }
 .dex-cell { position: relative; }
+.bulk-btn { border-color: #E8C76A88; color: #FFE7A3; }
+.bulk-stop { justify-content: center; flex-wrap: wrap; } .bulk-stop .chip { font-weight: 700; } .bulk-stop .chip.on { color: #10141C !important; }
+.bulk-steps { display: flex; flex-direction: column; gap: 6px; width: 100%; } .bulk-steps div { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--bg); font-size: 14px; } .bulk-steps div span:first-child { text-align: right; }
 .dex-claim { position: absolute; left: 4px; right: 4px; bottom: 4px; border: 0; border-radius: 8px; background: linear-gradient(180deg,#3FB6FF,#1E7FE0); color: #fff; font-size: 10px; font-weight: 800; padding: 4px 2px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.5); animation: dexPulse 1.6s ease-in-out infinite; }
 @keyframes dexPulse { 50% { transform: scale(1.05); } }
 @media (prefers-reduced-motion: reduce) { .dex-claim { animation: none; } }
@@ -1189,7 +1192,7 @@ body.busy button[data-action] { cursor: progress; }
           return '<button class="chip' + (m === n ? ' on' : '') + '" data-action="gd-mats" data-key="' + n + '" type="button"' + (dis ? ' disabled' : '') + '>재료 ' + n + '장</button>'; }).join('') + '</div>' +
           '<button class="cta buy" data-action="gd-merge" data-key="' + k + ':' + g + ':' + m + '" type="button">성공 확률 ' + Math.round(m / need * 1000) / 10 + '% · 강화하기</button>';
       }
-      html += '</div>';
+      html += '<button class="ghost bulk-btn" data-action="gd-bulk-open" data-key="' + k + ':' + g + '" type="button">⚡ 100%로 한 번에 강화</button></div>';
     } else html += '<p class="note" style="margin:0">최고 등급이에요 👑</p>';
     return html + '</section>';
   }
@@ -1216,10 +1219,40 @@ body.busy button[data-action] { cursor: progress; }
     return html;
   }
   function short2(n) { return n >= 10000 ? fmt(n / 10000) + '만' : n >= 1000 ? fmt(n / 1000) + '천' : fmt(n); }
+  // 100% 일괄 강화 미리보기 (서버 god_merge_bulk 와 같은 계산)
+  function bulkPlan(k, g, chain, stop) {
+    var qty = {}; for (var i = 1; i <= 10; i++) qty[i] = godQty(k, i);
+    var end = chain ? Math.max(g + 1, Math.min(stop || 10, 10)) : g + 1, steps = [];
+    for (var x = g; x < end; x++) {
+      var need = godNeed(x), n = Math.floor(qty[x] / (need + 1));
+      if (n > 0) { steps.push({ g: x, from: qty[x], used: n * (need + 1), made: n }); qty[x] -= n * (need + 1); qty[x + 1] += n; }
+    }
+    return { steps: steps, qty: qty };
+  }
+  function bulkModal() {
+    var b = ui.bulk, p = bulkPlan(b.k, b.g, b.chain, b.stop), gd = GOD[b.k];
+    var html = '<b class="gd-title">⚡ 100%로 한 번에 강화</b><span class="label">' + GRADES[b.g - 1] + ' ' + gd.n + '부터 · 실패 없이 100%로만 강화해요</span>' +
+      '<div class="chips" role="group" aria-label="강화 방식" style="justify-content:center">' +
+      '<button class="chip' + (!b.chain ? ' on' : '') + '" data-action="gd-bulk-mode" data-key="a" type="button">이 등급만</button>' +
+      '<button class="chip' + (b.chain ? ' on' : '') + '" data-action="gd-bulk-mode" data-key="b" type="button">위로 연쇄</button></div>';
+    if (b.chain) {
+      html += '<span class="label">어디까지 올릴까요?</span><div class="chips bulk-stop" role="group" aria-label="멈출 등급">';
+      for (var t = b.g + 1; t <= 10; t++) html += '<button class="chip' + (b.stop === t ? ' on' : '') + '" data-action="gd-bulk-stop" data-key="' + t + '" type="button" style="color:' + GRADE_C[t - 1] + '">' + GRADES[t - 1] + '</button>';
+      html += '</div>';
+    }
+    if (!p.steps.length) html += '<p class="note" style="margin:0;color:var(--up)">100%로 강화할 수 있는 카드가 없어요. 같은 카드가 ' + (godNeed(b.g) + 1) + '장 이상 있어야 해요.</p>';
+    else {
+      html += '<div class="bulk-steps">' + p.steps.map(function (s) {
+        return '<div><span style="color:' + GRADE_C[s.g - 1] + '">' + GRADES[s.g - 1] + ' ' + s.from + '장</span><span>→</span><b style="color:' + GRADE_C[s.g] + '">' + GRADES[s.g] + ' +' + s.made + '</b></div>'; }).join('') + '</div>';
+      var left = []; for (var i = 10; i >= b.g; i--) if (p.qty[i]) left.push(GRADES[i - 1] + ' ' + p.qty[i]);
+      html += '<span class="label">끝나면: ' + left.join(' · ') + '</span>';
+    }
+    godModal(html, p.steps.length ? '<button class="cta buy" data-action="gd-bulk-go" type="button" style="align-self:stretch">강화하기</button>' : '');
+  }
   function godModal(html, extra) {
     var m = document.getElementById('gd-modal');
     if (!m) { m = document.createElement('div'); m.id = 'gd-modal'; m.className = 'gd-modal'; document.body.appendChild(m); }
-    m.innerHTML = '<div class="gd-box" role="dialog" aria-modal="true">' + html + (extra || '') + '<button class="cta buy" data-action="gd-close" type="button">' + (extra ? '닫기' : '확인') + '</button></div>';
+    m.innerHTML = '<div class="gd-box" role="dialog" aria-modal="true">' + html + (extra || '') + '<button class="' + (extra ? 'ghost' : 'cta buy') + '" data-action="gd-close" type="button" style="align-self:stretch">' + (extra ? '닫기' : '확인') + '</button></div>';
     m.hidden = false;
   }
   function godSummonResult(res, tk) {
@@ -1281,6 +1314,18 @@ body.busy button[data-action] { cursor: progress; }
     if (a === 'gd-summon') {
       r = await call('god_summon', { p_n: Number(k) }); if (!r) return;
       godSet(r.data.state); godSummonResult(r.data.res, r.data.tickets_new); render(); return;
+    }
+    if (a === 'gd-bulk-open') { var bk = k.split(':'); ui.bulk = { k: bk[0], g: Number(bk[1]), chain: true, stop: 10 }; bulkModal(); return; }
+    if (a === 'gd-bulk-mode') { ui.bulk.chain = k === 'b'; bulkModal(); return; }
+    if (a === 'gd-bulk-stop') { ui.bulk.stop = Number(k); bulkModal(); return; }
+    if (a === 'gd-bulk-go') {
+      var bb = ui.bulk; document.getElementById('gd-modal').hidden = true;
+      r = await call('god_merge_bulk', { p_kind: bb.k, p_grade: bb.g, p_chain: bb.chain, p_stop: bb.stop }); if (!r) return;
+      godSet(r.data.state);
+      var best = Number(r.data.best), made = (r.data.steps || []).reduce(function (a2, s2) { return a2 + Number(s2.made); }, 0);
+      godModal('<b class="gd-title" style="color:' + GRADE_C[best - 1] + '">일괄 강화 완료!</b><div class="gd-one">' + godCard(bb.k, best, { action: 'none' }) + '</div>' +
+        '<span class="label">' + (r.data.steps || []).map(function (s2) { return GRADES[s2.g] + ' +' + s2.made; }).join(' · ') + '</span>');
+      ui.gsel = godQty(bb.k, bb.g) ? bb.k + ':' + bb.g : null; render(); return;
     }
     if (a === 'gd-dex') {
       r = await call('god_dex_claim', { p_key: k }); if (!r) return;
@@ -2251,6 +2296,11 @@ body.busy button[data-action] { cursor: progress; }
   // ---------- 버전 · 업데이트 내역 ----------
   // 앞자리 = 대규모(규칙·경제 개편), 가운데 = 새 기능, 뒷자리 = 버그 수정·표시 개선. 최신이 맨 위.
   var PATCH_NOTES = [
+    { v: '3.3.2', d: '11/5', title: '', items: [
+      '⚡ 100%로 한 번에 강화: 카드를 누르고 버튼 하나로 실패 없이 최대한 강화해요',
+      '"이 등급만" 또는 "위로 연쇄"를 고를 수 있고, 연쇄는 멈출 등급도 정할 수 있어요. 누르기 전에 결과를 미리 보여줘요',
+      '장착한 카드는 재료로 쓰이지 않아요'
+    ] },
     { v: '3.3.1', d: '11/5', title: '', items: [
       '도감 보상: 처음 얻은 카드마다 다이아를 한 번 받아요 (일반 1,000 ~ 신 500,000). 도감에서 받기 버튼을 눌러 받아요',
       '받을 도감 보상이나 전설 선택권이 있으면 신전 탭에 빨간 점이 떠요',
@@ -2558,7 +2608,7 @@ body.busy button[data-action] { cursor: progress; }
   }
 
   // 화면 버전: 업데이트할 때 이 숫자와 서버(game.client_ver)를 같이 올리면, 켜져 있는 옛날 화면이 스스로 새로고침해요
-  var APP_VER = 21;
+  var APP_VER = 22;
   function checkVersion(v) {
     if (!v || v <= APP_VER) return;
     var key = 'ant-reload-' + v, last = 0;
